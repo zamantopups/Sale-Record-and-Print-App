@@ -143,14 +143,14 @@
         // --- CORE APPLICATION LOGIC ---
         
         // Function to show temporary messages in the Item Manager Modal
-        function showMessageBox(message, isError = false) {
-            const box = document.getElementById('item-manager-message');
+        function showMessageBox(message, isError = false, boxId = 'item-manager-message') {
+            const box = document.getElementById(boxId);
             if (box) {
                 box.textContent = message;
                 box.className = `p-3 rounded-lg text-sm mb-4 ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
                 setTimeout(() => {
                     box.textContent = '';
-                    box.className = 'hidden';
+                    box.classList.add('hidden');
                 }, 4000);
                 box.classList.remove('hidden');
             }
@@ -752,7 +752,8 @@
 
                 // 1. Determine capabilities:
                 const isDefaultItem = DEFAULT_PRICE_LIST.hasOwnProperty(name);
-                const isGenericCategory = name === 'Stationery / Other Item';
+                // The isGenericCategory check is only useful if we wanted to block price edit, but we allow price edit on all.
+                // const isGenericCategory = name === 'Stationery / Other Item';
 
                 // Only custom items (not in DEFAULT_PRICE_LIST) can be renamed/deleted
                 const canBeRenamed = !isDefaultItem; 
@@ -874,10 +875,113 @@
             }
         }
         
+        // --- DATA BACKUP AND RESTORE LOGIC (New Feature) ---
+
+        function exportData() {
+            // 1. Collect all data into a single object
+            const allData = {
+                [SALES_KEY]: JSON.parse(localStorage.getItem(SALES_KEY) || '[]'),
+                [EXPENSES_KEY]: JSON.parse(localStorage.getItem(EXPENSES_KEY) || '[]'),
+                [CUSTOM_PRICE_KEY]: JSON.parse(localStorage.getItem(CUSTOM_PRICE_KEY) || '{}'),
+                // Adding a version stamp for future compatibility
+                version: 1.0, 
+                timestamp: new Date().toISOString()
+            };
+
+            // 2. Convert to JSON string
+            const dataStr = JSON.stringify(allData, null, 2);
+            
+            // 3. Create a Blob and a download link
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            
+            // 4. Set filename based on current date
+            const dateStr = new Date().toISOString().substring(0, 10);
+            a.download = `shop_manager_backup_${dateStr}.json`;
+            a.href = url;
+            
+            // 5. Trigger download
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showMessageBox('Data safaltapoorvak (successfully) download kar liya gaya hai.', false, 'import-status');
+        }
+
+        function importData() {
+            const fileInput = document.getElementById('import-file');
+            const file = fileInput.files[0];
+            const statusBox = document.getElementById('import-status');
+
+            if (!file) {
+                showMessageBox('Kripya pehle koi JSON file chunein.', true, 'import-status');
+                return;
+            }
+
+            if (!confirm("Kya aap sach mein data restore (wapas lana) chahte hain? Isse aapka maujooda (current) data hat jayega.")) {
+                return;
+            }
+
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+                try {
+                    const importedData = JSON.parse(event.target.result);
+
+                    // 1. Basic validation: Check for the required keys
+                    if (!importedData.hasOwnProperty(SALES_KEY) || 
+                        !importedData.hasOwnProperty(EXPENSES_KEY) || 
+                        !importedData.hasOwnProperty(CUSTOM_PRICE_KEY)) {
+                        showMessageBox('Yeh file ghalat (invalid) hai ya isme zaroori data missing hai.', true, 'import-status');
+                        return;
+                    }
+
+                    // 2. Overwrite localStorage keys
+                    localStorage.setItem(SALES_KEY, JSON.stringify(importedData[SALES_KEY]));
+                    localStorage.setItem(EXPENSES_KEY, JSON.stringify(importedData[EXPENSES_KEY]));
+                    localStorage.setItem(CUSTOM_PRICE_KEY, JSON.stringify(importedData[CUSTOM_PRICE_KEY]));
+                    
+                    // 3. Success Feedback and UI Refresh
+                    showMessageBox('Data safaltapoorvak (successfully) restore kar liya gaya hai! App reload ho raha hai.', false, 'import-status');
+                    
+                    // Delay reload slightly to show message
+                    setTimeout(() => {
+                        updateUI();
+                        fileInput.value = ''; // Clear file input
+                        document.getElementById('import-button').disabled = true; // Disable button
+                    }, 1500);
+
+                } catch (e) {
+                    showMessageBox('Error: File padhne mein ya data format mein koi masla hai. Yeh shayad JSON file nahi hai.', true, 'import-status');
+                    console.error("Import error:", e);
+                }
+            };
+
+            reader.onerror = function() {
+                showMessageBox('File load karne mein koi masla hua.', true, 'import-status');
+            };
+
+            reader.readAsText(file);
+        }
+
+        // Helper to enable/disable import button based on file selection
+        function setupImportListener() {
+            const fileInput = document.getElementById('import-file');
+            const importButton = document.getElementById('import-button');
+            if (fileInput && importButton) {
+                fileInput.addEventListener('change', () => {
+                    importButton.disabled = fileInput.files.length === 0;
+                });
+            }
+        }
+        
         // --- INITIALIZATION ---
         window.onload = function() {
             updateUI(); // Initial load and render
             setupSaleFormListeners(); // Ensure listeners are attached initially
+            setupImportListener(); // Setup listener for the new import feature
             
             // Fix static HTML labels using JS on load for the final touch (all in Hindi/Latin)
             // Sale form labels
@@ -1024,6 +1128,32 @@
             
             <div id="history-report-results" class="mt-6">
                 <p class="text-gray-500">Tarikh chun kar "Report Banaein" button dabayen.</p>
+            </div>
+        </div>
+
+        <!-- Data Backup & Restore Section (New Feature) -->
+        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-purple-500 no-print">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Data Backup & Restore (Data Save Aur Wapsi)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Backup -->
+                <div class="p-4 border border-purple-200 rounded-lg bg-purple-50">
+                    <h3 class="text-xl font-semibold text-purple-700 mb-3">Data Backup Karein (Export)</h3>
+                    <p class="text-sm text-gray-600 mb-4">Apna saara data (Sales, Expenses, Prices) ek JSON file mein download karein.</p>
+                    <button onclick="exportData()" class="w-full bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 transition duration-150 shadow-md">
+                        Data Download Karein (.json)
+                    </button>
+                </div>
+
+                <!-- Restore -->
+                <div class="p-4 border border-green-200 rounded-lg bg-green-50">
+                    <h3 class="text-xl font-semibold text-green-700 mb-3">Data Restore Karein (Import)</h3>
+                    <p class="text-sm text-gray-600 mb-2">Pehle se save ki gayi JSON file upload karke data wapas laayein. (Yeh aapke maujooda data ko hata dega)</p>
+                    <input type="file" id="import-file" accept=".json" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"/>
+                    <button onclick="importData()" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition duration-150 shadow-md mt-3" id="import-button" disabled>
+                        Data Restore Karein
+                    </button>
+                    <p id="import-status" class="mt-2 text-sm hidden"></p>
+                </div>
             </div>
         </div>
 
