@@ -14,7 +14,7 @@
         /* Custom styles for printing */
         @media print {
             /* Hide the main form, header, and controls during print */
-            #main-app, #header, #expense-section, #summary-section, #sales-list-section, #expenses-list-section, #app-controls, #history-form {
+            #main-app, #header, #expense-section, #summary-section, #sales-list-section, #expenses-list-section, #app-controls, #history-form, #history-report-section {
                 display: none !important;
             }
             /* Show only the receipt/report content */
@@ -47,6 +47,12 @@
             #receipt-print-area h2 {
                  font-size: 14pt !important;
                  font-weight: bold !important;
+            }
+            .credit-highlight-print {
+                color: #0d9488 !important; /* Teal for credit */
+                border: 1px dashed #0d9488 !important;
+                padding: 2px !important;
+                display: block !important;
             }
         }
     </style>
@@ -138,6 +144,31 @@
             <section class="mb-10 p-6 bg-indigo-50 rounded-xl shadow-md">
                 <h2 class="text-2xl font-semibold mb-4 text-indigo-800 border-b pb-2">New Sale Entry</h2>
                 
+                <!-- New: Sale Type and Customer Name -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-white rounded-lg border border-indigo-200">
+                    <!-- Sale Type (Cash/Credit) -->
+                    <div class="col-span-1 md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Transaction Type</label>
+                        <div class="flex space-x-6">
+                            <label class="flex items-center">
+                                <input type="radio" name="sale-type" value="Cash" id="sale-type-cash" checked class="form-radio h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300">
+                                <span class="ml-2 text-gray-700 font-medium">Cash Sale</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="sale-type" value="Credit" id="sale-type-credit" class="form-radio h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300">
+                                <span class="ml-2 text-gray-700 font-medium">Credit Sale</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Customer Name Input -->
+                    <div class="col-span-1 md:col-span-2">
+                        <label for="customer-name" id="customer-name-label" class="block text-sm font-medium text-gray-700">Customer Name</label>
+                        <input type="text" id="customer-name" placeholder="Enter Customer Name (Optional)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <!-- Item details grid (Existing) -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                     <!-- Service Type Selector (Column 1) -->
                     <div>
@@ -286,6 +317,11 @@
         const customItemNameContainer = document.getElementById('custom-item-name-container');
         const customItemNameInput = document.getElementById('custom-item-name');
 
+        // New Credit/Customer Elements
+        const saleTypeRadios = document.querySelectorAll('input[name="sale-type"]');
+        const customerNameInput = document.getElementById('customer-name');
+        const customerNameLabel = document.getElementById('customer-name-label');
+
 
         // Expense elements
         const expenseDescriptionInput = document.getElementById('expense-description');
@@ -389,6 +425,11 @@
                     // Ensure items is an array, handling old stringified formats if any
                     if (typeof sale.items === 'string') {
                         try { sale.items = JSON.parse(sale.items); } catch (e) { sale.items = []; }
+                    }
+                    // Handle older sales data that might not have saleType/customerName
+                    if (!sale.saleType) {
+                        sale.saleType = 'Cash';
+                        sale.customerName = '';
                     }
                 });
                 sales.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -582,6 +623,16 @@
                     <td class="py-0 px-1 text-right">${item.subTotal.toFixed(2)}</td>
                 </tr>
             `).join('');
+            
+            const saleType = sale.saleType || 'Cash';
+            const customerName = sale.customerName || 'N/A';
+            
+            // Add a highlight for Credit sales
+            const creditHighlight = saleType === 'Credit' ? 
+                `<div class="text-center mt-3 p-1 font-bold text-teal-700 border-2 border-dashed border-teal-500 rounded-sm text-xs credit-highlight-print">
+                    CREDIT SALE - Customer: ${customerName}
+                </div>` : '';
+
 
             const receiptHtml = `
                 <div class="max-w-xs mx-auto p-2">
@@ -592,12 +643,13 @@
                     
                     <div style="border-top: 1px dashed black; margin-top: 4px; margin-bottom: 4px;"></div>
 
-                    <p class="mb-1">Date: ${dateStr}</p>
-                    <p class="mb-3">Trans. ID: ${sale.id}</p>
+                    <p class="mb-1 text-xs">Date: ${dateStr}</p>
+                    <p class="mb-1 text-xs">Trans. ID: ${sale.id}</p>
+                    <p class="mb-3 text-xs">Type: <span class="font-bold">${saleType}</span></p>
                     
                     <div style="border-top: 1px dashed black; margin-bottom: 2px;"></div>
 
-                    <table class="w-full border-collapse mb-2">
+                    <table class="w-full border-collapse mb-2 text-xs">
                         <thead>
                             <tr class="bg-gray-100">
                                 <th class="py-1 px-1 text-left" style="width: 40%;">Item</th>
@@ -613,14 +665,16 @@
 
                     <div style="border-top: 1px dashed black; margin-top: 2px;"></div>
                     
-                    <div class="flex justify-between font-bold text-xs pt-1">
+                    <div class="flex justify-between font-bold text-sm pt-1">
                         <span>TOTAL</span>
                         <span>${sale.totalAmount.toFixed(2)} PKR</span>
                     </div>
                     
+                    ${creditHighlight}
+                    
                     <div style="border-top: 1px dashed black; margin-top: 8px; margin-bottom: 8px;"></div>
                     
-                    <p class="text-center">Thank you for your business!</p>
+                    <p class="text-center text-xs">Thank you for your business!</p>
                 </div>
             `;
             
@@ -630,6 +684,8 @@
         
         /** Generates and triggers the print functionality for the history report */
         function printHistoryReport(data) {
+            // Implementation for history report printing remains largely the same 
+            // as the sale type/customer name is primarily relevant for individual receipts and the sales list view.
             if (!data || data.sales.length === 0 && data.expenses.length === 0) {
                 showMessage("No data to print for the selected period.", true);
                 return;
@@ -641,7 +697,7 @@
 
             // Detailed Transactions (Sales + Expenses)
             const combinedData = [
-                ...sales.map(s => ({ ...s, type: 'Sale', amount: s.totalAmount, description: `Sale ID ${s.id}` })),
+                ...sales.map(s => ({ ...s, type: 'Sale', amount: s.totalAmount, description: s.customerName ? `Sale ID ${s.id} (${s.saleType} - ${s.customerName})` : `Sale ID ${s.id} (Cash)` })),
                 ...expenses.map(e => ({ ...e, type: 'Expense', amount: e.amount, description: e.description }))
             ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Sort by date ascending for report
 
@@ -649,7 +705,7 @@
                 <tr class="${item.type === 'Sale' ? 'text-green-800' : 'text-red-800'} border-b border-gray-100">
                     <td class="py-1 px-2">${formatTimestamp(item.date)}</td>
                     <td class="py-1 px-2">${item.type}</td>
-                    <td class="py-1 px-2 text-left">${item.type === 'Sale' ? (Array.isArray(item.items) ? item.items.map(i => i.type).join(', ') : `Sale ID ${item.id}`) : item.description}</td>
+                    <td class="py-1 px-2 text-left">${item.type === 'Sale' ? (Array.isArray(item.items) ? item.items.map(i => i.type).join(', ') : item.description) : item.description}</td>
                     <td class="py-1 px-2 text-right font-medium">${item.type === 'Sale' ? '+' : '-'} ${item.amount.toFixed(2)}</td>
                 </tr>
             `).join('');
@@ -715,6 +771,9 @@
             serviceTypeSelect.value = 'Photocopy B/W'; 
             updatePricePerUnit();
             customItemNameInput.value = ''; // Reset custom item name
+            customerNameInput.value = ''; // Reset customer name
+            document.getElementById('sale-type-cash').checked = true; // Reset to Cash
+            updateCustomerNameField(); // Reset label/placeholder
         }
         
         /** Resets the expense form */
@@ -738,9 +797,27 @@
 
             updatePricePerUnit();
             updateAllSummaries(); // Initial population of all summary views
+            updateCustomerNameField(); // Initial check for customer name field label
         }
 
         // --- EVENT HANDLERS: SALE ---
+        
+        /** Updates the visibility and label for the customer name field based on sale type */
+        function updateCustomerNameField() {
+            const selectedType = document.querySelector('input[name="sale-type"]:checked').value;
+            if (selectedType === 'Credit') {
+                customerNameLabel.innerHTML = 'Customer Name <span class="text-red-600 font-bold">(Required)</span>';
+                customerNameInput.placeholder = 'Enter Customer Name';
+            } else {
+                customerNameLabel.textContent = 'Customer Name';
+                customerNameInput.placeholder = 'Enter Customer Name (Optional)';
+            }
+        }
+        
+        saleTypeRadios.forEach(radio => {
+            radio.addEventListener('change', updateCustomerNameField);
+        });
+
 
         /** Updates the Price Per Unit input with the default rate for the selected service, and toggles custom input visibility. */
         function updatePricePerUnit() {
@@ -797,6 +874,14 @@
                 showMessage('Please add items to the bill first.', true);
                 return;
             }
+            
+            const saleType = document.querySelector('input[name="sale-type"]:checked').value;
+            const customerName = customerNameInput.value.trim();
+
+            if (saleType === 'Credit' && !customerName) {
+                showMessage('Customer Name is required for Credit Sales.', true);
+                return;
+            }
 
             saveSaleBtn.disabled = true;
             saveSaleBtn.textContent = 'Saving...';
@@ -808,13 +893,15 @@
                 date: new Date().toISOString(), 
                 items: currentCart, 
                 totalAmount: totalAmount,
+                saleType: saleType, // New field
+                customerName: customerName, // New field
             };
 
             const existingSales = loadSalesFromLocalStorage();
             existingSales.push(newSale);
             saveSalesToLocalStorage(existingSales);
 
-            showMessage('Sale saved successfully to your browser!', false);
+            showMessage(`Sale saved successfully! (${saleType})`, false);
             resetSale();
             
             saveSaleBtn.disabled = false;
@@ -899,7 +986,7 @@
             }
         });
 
-        // --- RENDERING FUNCTIONS: CART & LISTS (Unchanged) ---
+        // --- RENDERING FUNCTIONS: CART & LISTS (Updated) ---
         
         /** Calculates and updates the cart's total amount */
         function updateCartTotal() {
@@ -953,19 +1040,33 @@
 
             sales.slice(0, 10).forEach(sale => { // Show only recent 10
                 const saleCard = document.createElement('div');
-                saleCard.className = 'p-4 border border-gray-200 rounded-lg shadow-sm bg-white hover:shadow-md transition duration-150';
+                
+                const saleType = sale.saleType || 'Cash';
+                const customerName = sale.customerName || 'N/A';
+                
+                // Highlight for Credit Sales
+                const isCredit = saleType === 'Credit';
+                const typeClass = isCredit ? 'border-teal-400 bg-teal-50' : 'border-gray-200 bg-white';
+                const typeTextClass = isCredit ? 'text-teal-700' : 'text-indigo-700';
+                
+                saleCard.className = `p-4 border-l-4 rounded-lg shadow-sm hover:shadow-md transition duration-150 ${typeClass}`;
                 
                 const dateStr = formatTimestamp(sale.date);
                 
                 const itemsArray = Array.isArray(sale.items) ? sale.items : [];
                 const itemsSummary = itemsArray.map(item => `${item.type} (${item.quantity})`).join(', ');
+                
+                const customerDetail = isCredit ? `<p class="text-sm font-semibold text-teal-800">Customer: ${customerName}</p>` : `<p class="text-xs text-gray-500">Cash Sale</p>`;
 
                 saleCard.innerHTML = `
-                    <div class="flex justify-between items-center mb-2">
-                        <div class="text-xl font-bold text-indigo-700">${sale.totalAmount.toFixed(2)} PKR</div>
-                        <span class="text-sm text-gray-500">${dateStr}</span>
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <div class="text-xl font-bold ${typeTextClass}">${sale.totalAmount.toFixed(2)} PKR</div>
+                            ${customerDetail}
+                        </div>
+                        <span class="text-sm text-gray-500 text-right">${dateStr}</span>
                     </div>
-                    <p class="text-sm text-gray-600 mb-3 truncate" title="${itemsSummary}">Items: ${itemsSummary}</p>
+                    <p class="text-sm text-gray-600 mb-3 truncate border-t border-gray-100 pt-2" title="${itemsSummary}">Items: ${itemsSummary}</p>
                     
                     <div class="flex justify-between items-center pt-2 border-t border-gray-100">
                         <!-- Print Button -->
