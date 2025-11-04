@@ -14,25 +14,24 @@
         /* Custom styles for printing */
         @media print {
             /* Hide the main form, header, and controls during print */
-            #main-app, #header, #expense-section, #summary-section {
+            #main-app, #header, #expense-section, #summary-section, #sales-list-section, #expenses-list-section, #app-controls, #history-form {
                 display: none !important;
             }
-            /* Show only the receipt content */
+            /* Show only the receipt/report content */
             #receipt-print-area {
                 display: block !important;
                 position: absolute;
                 top: 0;
                 left: 0;
                 width: 100%;
-                height: 100%;
                 margin: 0;
-                padding: 5px; /* Reduced padding */
+                padding: 15px; 
                 background: white;
                 
-                /* Receipt-specific styling for light ink and smaller size */
-                font-family: 'Arial', sans-serif; /* Use a thick, bold font */
-                color: #000; /* Ensure text is pure black */
-                font-size: 8pt; /* Reduced font size for compact printing */ 
+                /* Receipt/Report-specific styling */
+                font-family: 'Arial', sans-serif; 
+                color: #000; 
+                font-size: 10pt; 
             }
             /* Reset body padding for print */
             body {
@@ -42,51 +41,102 @@
             }
             /* Ensure all text is legible and dark for light ink printers */
             #receipt-print-area * {
-                font-weight: 500 !important; /* Set to 500 as requested */
+                font-weight: 500 !important; 
                 color: #000 !important;
+            }
+            #receipt-print-area h2 {
+                 font-size: 14pt !important;
+                 font-weight: bold !important;
             }
         }
     </style>
 </head>
 <body class="p-4 sm:p-8">
 
-    <!-- Print Area (Initially Hidden) -->
+    <!-- Print Area (Initially Hidden) - Used for individual receipts or the monthly report -->
     <div id="receipt-print-area" class="hidden"></div>
-
+    
     <!-- Main Application Container -->
-    <div id="main-app" class="max-w-4xl mx-auto bg-white shadow-xl rounded-xl p-4 sm:p-8">
-        <header id="header" class="mb-8 border-b pb-4">
-            <h1 class="text-3xl font-bold text-center text-indigo-700">Shop Sales & Expense Record (Local)</h1>
+    <div id="main-app" class="max-w-6xl mx-auto bg-white shadow-2xl rounded-xl p-4 sm:p-10">
+        <header id="header" class="mb-8 border-b-2 pb-4">
+            <h1 class="text-4xl font-extrabold text-center text-indigo-700">Shop Sales & Expense Management</h1>
             <p class="text-center text-sm text-gray-500 mt-2" id="user-info">Data saved locally in your browser.</p> 
         </header>
 
         <main id="app-content">
 
-            <!-- 0. Summary Section (Mahaana Jaiza) -->
-            <section id="summary-section" class="mb-10 p-6 bg-gray-100 rounded-lg shadow-inner">
-                <h2 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">Monthly Summary (Current Month)</h2>
-                <div class="grid grid-cols-3 gap-4 text-center">
+            <!-- 0. Summary Section (Current Month) -->
+            <section id="summary-section" class="mb-10 p-6 bg-gray-100 rounded-xl shadow-inner">
+                <h2 class="text-2xl font-bold text-gray-700 mb-4 border-b pb-2">Current Month Summary (Real-time)</h2>
+                <div class="grid grid-cols-3 gap-6 text-center">
                     
-                    <div class="bg-white p-4 rounded-lg shadow-md border-b-4 border-green-500">
+                    <div class="bg-white p-5 rounded-lg shadow-md border-b-4 border-green-500">
                         <div class="text-sm font-medium text-gray-500">Total Sales</div>
-                        <div id="total-sales" class="text-2xl font-extrabold text-green-700 mt-1">0.00 PKR</div>
+                        <div id="total-sales" class="text-3xl font-extrabold text-green-700 mt-1">0.00 PKR</div>
                     </div>
                     
-                    <div class="bg-white p-4 rounded-lg shadow-md border-b-4 border-red-500">
+                    <div class="bg-white p-5 rounded-lg shadow-md border-b-4 border-red-500">
                         <div class="text-sm font-medium text-gray-500">Total Expenses</div>
-                        <div id="total-expenses" class="text-2xl font-extrabold text-red-700 mt-1">0.00 PKR</div>
+                        <div id="total-expenses" class="text-3xl font-extrabold text-red-700 mt-1">0.00 PKR</div>
                     </div>
                     
-                    <div class="bg-white p-4 rounded-lg shadow-md border-b-4 border-indigo-500">
+                    <div class="bg-white p-5 rounded-lg shadow-md border-b-4 border-indigo-500">
                         <div class="text-sm font-medium text-gray-500">Net Profit</div>
-                        <div id="net-profit" class="text-2xl font-extrabold text-indigo-700 mt-1">0.00 PKR</div>
+                        <div id="net-profit" class="text-3xl font-extrabold text-indigo-700 mt-1">0.00 PKR</div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 0.5 History Report Generator (New/Restored Section) -->
+            <section id="history-report-section" class="mb-10 p-6 bg-yellow-50 rounded-xl shadow-md border-l-4 border-yellow-500">
+                <h2 class="text-2xl font-bold text-yellow-800 mb-4 border-b pb-2">History Report & Print</h2>
+                
+                <form id="history-form" class="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+                    <!-- Start Date -->
+                    <div>
+                        <label for="start-date" class="block text-sm font-medium text-gray-700">Start Date</label>
+                        <input type="date" id="start-date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-yellow-500 focus:border-yellow-500">
+                    </div>
+                    
+                    <!-- End Date -->
+                    <div>
+                        <label for="end-date" class="block text-sm font-medium text-gray-700">End Date</label>
+                        <input type="date" id="end-date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-yellow-500 focus:border-yellow-500">
+                    </div>
+
+                    <!-- Generate Button -->
+                    <div class="col-span-1 sm:col-span-2 flex space-x-3">
+                        <button type="submit" id="generate-report-btn" class="w-1/2 bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition duration-150 shadow-md flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 001.414 1.414L10 16.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm13 8H4V5h12v6z" clip-rule="evenodd" />
+                            </svg>
+                            Generate Report
+                        </button>
+                        <button type="button" id="print-report-btn" class="w-1/2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md flex items-center justify-center" disabled>
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M5 4v2a2 2 0 002 2h6a2 2 0 002-2V4h1a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2h1zm0 2h10v10a1 1 0 01-1 1H6a1 1 0 01-1-1V6z" clip-rule="evenodd" />
+                                <path d="M10 12a1 1 0 100-2 1 1 0 000 2z" />
+                            </svg>
+                            Print Report
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="history-results" class="mt-6 p-4 border border-gray-300 rounded-lg bg-white hidden">
+                    <h3 class="text-xl font-bold mb-3 text-yellow-800">Duration Summary</h3>
+                    <div id="duration-summary-container" class="grid grid-cols-3 gap-4 text-center">
+                        <!-- Summary details will be populated here -->
+                    </div>
+                    <h4 class="text-lg font-semibold mt-6 mb-2">Detailed Breakdown</h4>
+                    <div id="duration-details" class="space-y-3">
+                        <!-- Detailed sales/expense items will be populated here -->
                     </div>
                 </div>
             </section>
 
-            <!-- 1. New Sale Entry Form (Nayi Sale Entry) -->
-            <section class="mb-10 p-6 bg-indigo-50 rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold mb-4 text-indigo-800 border-b pb-2">New Sale Entry</h2>
+            <!-- 1. New Sale Entry Form -->
+            <section class="mb-10 p-6 bg-indigo-50 rounded-xl shadow-md">
+                <h2 class="text-2xl font-semibold mb-4 text-indigo-800 border-b pb-2">New Sale Entry</h2>
                 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                     <!-- Service Type Selector (Column 1) -->
@@ -109,6 +159,8 @@
                             <optgroup label="Other Services">
                                 <option value="Scanning">Scanning</option>
                                 <option value="Binding">Binding</option>
+                                <option value="Typing">Typing</option> 
+                                <option value="Editing">Editing</option> 
                             </optgroup>
                             <!-- Single option for all other stationery/custom items -->
                             <option value="Custom Stationery/Item">Stationery / Other Item (Manual Entry)</option>
@@ -129,7 +181,7 @@
 
                     <!-- Add Button (Column 4) -->
                     <div class="flex items-end">
-                        <button id="add-item-btn" class="w-full bg-green-600 text-white p-2 rounded-md hover:bg-green-700 transition duration-150 shadow-md">
+                        <button id="add-item-btn" class="w-full bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition duration-150 shadow-md">
                             Add Item
                         </button>
                     </div>
@@ -137,7 +189,7 @@
                 
                 <!-- New Custom Description Input (Appears only when Stationery/Custom is selected) -->
                 <div id="custom-item-name-container" class="mb-4" style="display: none;">
-                    <label for="custom-item-name" class="block text-sm font-medium text-gray-700">Custom Item Name (Zaroori)</label>
+                    <label for="custom-item-name" class="block text-sm font-medium text-gray-700">Custom Item Name (Required)</label>
                     <input type="text" id="custom-item-name" placeholder="e.g., A4 White Paper, Stapler, etc." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
 
@@ -156,15 +208,15 @@
                     <div class="text-xl font-bold text-indigo-900">
                         Total Amount: <span id="total-amount">0.00</span> PKR
                     </div>
-                    <button id="save-sale-btn" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition duration-150 shadow-lg disabled:opacity-50" disabled>
+                    <button id="save-sale-btn" class="bg-indigo-600 text-white px-8 py-3 rounded-xl hover:bg-indigo-700 transition duration-150 shadow-lg disabled:opacity-50" disabled>
                         Save Sale
                     </button>
                 </div>
             </section>
 
-            <!-- 2. Expense Entry Form (Naya Kharcha) -->
-            <section id="expense-section" class="mb-10 p-6 bg-red-50 rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold mb-4 text-red-800 border-b pb-2">New Expense Entry</h2>
+            <!-- 2. Expense Entry Form -->
+            <section id="expense-section" class="mb-10 p-6 bg-red-50 rounded-xl shadow-md">
+                <h2 class="text-2xl font-semibold mb-4 text-red-800 border-b pb-2">New Expense Entry</h2>
                 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                     <!-- Expense Description -->
@@ -181,25 +233,25 @@
 
                     <!-- Save Expense Button -->
                     <div class="flex items-end">
-                        <button id="save-expense-btn" class="w-full bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition duration-150 shadow-md">
+                        <button id="save-expense-btn" class="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition duration-150 shadow-md">
                             Save Expense
                         </button>
                     </div>
                 </div>
             </section>
-
-            <!-- 3. Recent Sales Record (Haaliya Sales Record) -->
-            <section class="p-6 bg-white rounded-lg shadow-md mb-10">
-                <h2 class="text-xl font-semibold mb-4 text-indigo-800 border-b pb-2">Recent Sales History</h2>
+            
+            <!-- 3. Recent Sales Record -->
+            <section id="sales-list-section" class="p-6 bg-white rounded-xl shadow-md mb-10">
+                <h2 class="text-2xl font-semibold mb-4 text-indigo-800 border-b pb-2">Recent Sales History (Individual)</h2>
                 <div id="sales-list" class="space-y-4">
                     <!-- Sales records will be displayed here -->
                     <p id="no-sales-message" class="text-gray-500">No sales record found.</p>
                 </div>
             </section>
             
-            <!-- 4. Recent Expenses Record (Haaliya Kharchay) -->
-            <section class="p-6 bg-white rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold mb-4 text-red-800 border-b pb-2">Recent Expenses History</h2>
+            <!-- 4. Recent Expenses Record -->
+            <section id="expenses-list-section" class="p-6 bg-white rounded-xl shadow-md">
+                <h2 class="text-2xl font-semibold mb-4 text-red-800 border-b pb-2">Recent Expenses History</h2>
                 <div id="expenses-list" class="space-y-4">
                     <!-- Expense records will be displayed here -->
                     <p id="no-expenses-message" class="text-gray-500">No expense record found.</p>
@@ -231,8 +283,6 @@
         const noSalesMessage = document.getElementById('no-sales-message');
         const receiptPrintArea = document.getElementById('receipt-print-area');
         const messageBox = document.getElementById('message-box');
-        
-        // New custom stationery elements
         const customItemNameContainer = document.getElementById('custom-item-name-container');
         const customItemNameInput = document.getElementById('custom-item-name');
 
@@ -248,34 +298,48 @@
         const totalSalesSpan = document.getElementById('total-sales');
         const totalExpensesSpan = document.getElementById('total-expenses');
         const netProfitSpan = document.getElementById('net-profit');
+        
+        // History elements
+        const historyForm = document.getElementById('history-form');
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
+        const generateReportBtn = document.getElementById('generate-report-btn');
+        const printReportBtn = document.getElementById('print-report-btn');
+        const historyResultsContainer = document.getElementById('history-results');
+        const durationSummaryContainer = document.getElementById('duration-summary-container');
+        const durationDetailsContainer = document.getElementById('duration-details');
 
         // --- CONSTANTS AND STATE ---
         let currentCart = []; // {type, quantity, unitPrice, subTotal}
         const LOCAL_STORAGE_SALE_KEY = 'shop_sales_data'; // Key for sales data
         const LOCAL_STORAGE_EXPENSE_KEY = 'shop_expenses_data'; // Key for expense data
         
+        let latestReportData = null; // Store the last generated report data for printing
+
         // Company details for receipt
         const COMPANY_NAME = "Zaman Printing Services";
         const COMPANY_ADDRESS = "Basement No. 6, Al-Anayat Shopping Mall, G-11 Markaz, Islamabad";
 
 
-        // Service rates (Updated with new Print and Double Sided options)
+        // Service rates 
         const PRICE_LIST = {
             // Photocopy
             'Photocopy B/W': 7.0, 
-            'Photocopy (Double Sided B/W)': 14.0, // 7.0 * 2
+            'Photocopy (Double Sided B/W)': 14.0, 
             'Photocopy Color': 40.0,
-            'Photocopy (Double Sided Color)': 80.0, // 40.0 * 2
+            'Photocopy (Double Sided Color)': 80.0, 
             
-            // Printing (Default price 10 and 40 as requested)
-            'Print (B/W)': 10.0, // Requested 10
-            'Print (Double Sided B/W)': 20.0, // 10.0 * 2
-            'Print (Color)': 40.0, // Requested 40
-            'Print (Double Sided Color)': 80.0, // 40.0 * 2
+            // Printing
+            'Print (B/W)': 10.0, 
+            'Print (Double Sided B/W)': 20.0, 
+            'Print (Color)': 40.0, 
+            'Print (Double Sided Color)': 80.0, 
             
-            // Other Services
+            // Other Services 
             'Scanning': 20.0,
             'Binding': 70.0,
+            'Typing': 300.0, 
+            'Editing': 100.0, 
         };
 
         // --- UTILITY FUNCTIONS ---
@@ -315,28 +379,19 @@
             return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
         }
         
-        // --- LOCAL STORAGE FUNCTIONS: SALES ---
-
-        /** Loads sales data from local storage, or returns an empty array. */
+        // --- LOCAL STORAGE FUNCTIONS: SALES & EXPENSES ---
+        
         function loadSalesFromLocalStorage() {
             try {
                 const data = localStorage.getItem(LOCAL_STORAGE_SALE_KEY);
                 const sales = data ? JSON.parse(data) : [];
-                
                 sales.forEach(sale => {
+                    // Ensure items is an array, handling old stringified formats if any
                     if (typeof sale.items === 'string') {
-                        try {
-                            sale.items = JSON.parse(sale.items);
-                        } catch (e) {
-                            console.error("Failed to parse items array from local storage:", e);
-                            sale.items = [];
-                        }
+                        try { sale.items = JSON.parse(sale.items); } catch (e) { sale.items = []; }
                     }
                 });
-
-                // Sort the sales locally by date (newest first)
                 sales.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                
                 return sales;
             } catch (error) {
                 console.error("Error loading sales data from local storage:", error);
@@ -344,40 +399,30 @@
             }
         }
 
-        /** Saves the current array of sales back to local storage. */
         function saveSalesToLocalStorage(sales) {
             try {
                 localStorage.setItem(LOCAL_STORAGE_SALE_KEY, JSON.stringify(sales));
-                renderSalesList(sales); // Re-render the list after saving
-                updateSummary();
+                renderSalesList(sales);
+                updateAllSummaries();
             } catch (error) {
                 console.error("Error saving sales data to local storage:", error);
                 showMessage('Error saving sale data locally.', true);
             }
         }
         
-        /** Deletes a sale record by ID. */
         function deleteSale(saleId) {
             const saleIdInt = parseInt(saleId, 10);
             const existingSales = loadSalesFromLocalStorage();
             const updatedSales = existingSales.filter(sale => sale.id !== saleIdInt);
-
             saveSalesToLocalStorage(updatedSales);
             showMessage('Sale record deleted successfully. (Permanent Action)', false);
         }
 
-
-        // --- LOCAL STORAGE FUNCTIONS: EXPENSES ---
-
-        /** Loads expenses data from local storage, or returns an empty array. */
         function loadExpensesFromLocalStorage() {
             try {
                 const data = localStorage.getItem(LOCAL_STORAGE_EXPENSE_KEY);
                 const expenses = data ? JSON.parse(data) : [];
-                
-                // Sort the expenses locally by date (newest first)
                 expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                
                 return expenses;
             } catch (error) {
                 console.error("Error loading expenses data from local storage:", error);
@@ -385,19 +430,17 @@
             }
         }
 
-        /** Saves the current array of expenses back to local storage. */
         function saveExpensesToLocalStorage(expenses) {
             try {
                 localStorage.setItem(LOCAL_STORAGE_EXPENSE_KEY, JSON.stringify(expenses));
-                renderExpenseList(expenses); // Re-render the list after saving
-                updateSummary();
+                renderExpenseList(expenses);
+                updateAllSummaries();
             } catch (error) {
                 console.error("Error saving expenses data to local storage:", error);
                 showMessage('Error saving expense data locally.', true);
             }
         }
         
-        /** Deletes an expense record by ID. */
         function deleteExpense(expenseId) {
             const expenseIdInt = parseInt(expenseId, 10);
             const existingExpenses = loadExpensesFromLocalStorage();
@@ -407,12 +450,46 @@
             showMessage('Expense record deleted successfully. (Permanent Action)', false);
         }
         
-        // --- SUMMARY FUNCTION ---
+        // --- SUMMARY & HISTORY FUNCTIONS ---
         
-        /** Calculates and updates the monthly summary stats. */
-        function updateSummary() {
+        /** Filters data based on a date range (inclusive). */
+        function getFilteredData(startDateStr, endDateStr) {
             const allSales = loadSalesFromLocalStorage();
             const allExpenses = loadExpensesFromLocalStorage();
+
+            // Set time to start of day for start date and end of day for end date
+            const start = startDateStr ? new Date(startDateStr) : new Date(0);
+            const end = endDateStr ? new Date(endDateStr) : new Date();
+            // Move end date to the end of the day for inclusivity
+            if (endDateStr) end.setDate(end.getDate() + 1);
+
+            const filteredSales = allSales.filter(sale => {
+                const saleDate = new Date(sale.date);
+                return saleDate >= start && saleDate < end;
+            });
+
+            const filteredExpenses = allExpenses.filter(expense => {
+                const expenseDate = new Date(expense.date);
+                return expenseDate >= start && expenseDate < end;
+            });
+            
+            // Calculate totals
+            const totalSales = filteredSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+            const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+            const netProfit = totalSales - totalExpenses;
+
+            return {
+                sales: filteredSales,
+                expenses: filteredExpenses,
+                summary: { totalSales, totalExpenses, netProfit }
+            };
+        }
+        
+        /** Updates the Current Month Summary (top section). */
+        function updateCurrentMonthSummary() {
+            const allSales = loadSalesFromLocalStorage();
+            const allExpenses = loadExpensesFromLocalStorage();
+            
             const currentMonthSales = allSales.filter(sale => isCurrentMonth(sale.date));
             const currentMonthExpenses = allExpenses.filter(expense => isCurrentMonth(expense.date));
             
@@ -424,180 +501,80 @@
             totalExpensesSpan.textContent = totalExpenses.toFixed(2) + ' PKR';
             netProfitSpan.textContent = netProfit.toFixed(2) + ' PKR';
             
-            if (netProfit < 0) {
-                netProfitSpan.classList.remove('text-indigo-700');
-                netProfitSpan.classList.add('text-red-700');
-            } else {
-                netProfitSpan.classList.add('text-indigo-700');
-                netProfitSpan.classList.remove('text-red-700');
-            }
-        }
-
-
-        // --- RENDERING FUNCTIONS ---
-
-        /** Calculates and updates the cart's total amount */
-        function updateCartTotal() {
-            const total = currentCart.reduce((sum, item) => sum + item.subTotal, 0);
-            totalAmountSpan.textContent = total.toFixed(2);
-            saveSaleBtn.disabled = currentCart.length === 0;
-            emptyCartMessage.style.display = currentCart.length === 0 ? 'block' : 'none';
-        }
-
-        /** Renders the current items in the cart UI */
-        function renderCart() {
-            cartList.innerHTML = '';
-            currentCart.forEach((item, index) => {
-                const li = document.createElement('li');
-                li.className = 'flex justify-between items-center p-3 bg-white border border-gray-200 rounded-md';
-                li.innerHTML = `
-                    <div class="flex-grow">
-                        <span class="font-medium">${item.type}</span> 
-                        <span class="text-sm text-gray-500">(${item.quantity} x ${item.unitPrice.toFixed(2)} PKR)</span>
-                    </div>
-                    <div class="font-bold text-indigo-600">${item.subTotal.toFixed(2)} PKR</div>
-                    <button data-index="${index}" class="remove-item-btn ml-4 text-red-500 hover:text-red-700 transition duration-150" title="Remove Item">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
-                `;
-                cartList.appendChild(li);
-            });
-            updateCartTotal();
-            
-            document.querySelectorAll('.remove-item-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const index = parseInt(e.currentTarget.dataset.index, 10);
-                    currentCart.splice(index, 1);
-                    renderCart();
-                    showMessage('Item removed.');
-                });
-            });
+            netProfitSpan.classList.toggle('text-red-700', netProfit < 0);
+            netProfitSpan.classList.toggle('text-indigo-700', netProfit >= 0);
         }
         
-        /** Renders the list of all saved sales */
-        function renderSalesList(sales) {
-            salesListContainer.innerHTML = '';
+        /** Calls all update functions */
+        function updateAllSummaries() {
+            // Update Current Month Summary
+            updateCurrentMonthSummary();
+        }
+        
+        /** Renders the results of the filtered history report */
+        function renderHistoryReport(data) {
+            latestReportData = data;
+            historyResultsContainer.classList.remove('hidden');
+            printReportBtn.disabled = false;
+
+            const summary = data.summary;
             
-            if (sales.length === 0) {
-                noSalesMessage.style.display = 'block';
+            // 1. Render Summary Block
+            durationSummaryContainer.innerHTML = `
+                <div class="bg-gray-100 p-4 rounded-lg shadow-sm border-b-2 border-green-500">
+                    <div class="text-sm font-medium text-gray-500">Total Sales</div>
+                    <div class="text-xl font-extrabold text-green-700 mt-1">${summary.totalSales.toFixed(2)} PKR</div>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg shadow-sm border-b-2 border-red-500">
+                    <div class="text-sm font-medium text-gray-500">Total Expenses</div>
+                    <div class="text-xl font-extrabold text-red-700 mt-1">${summary.totalExpenses.toFixed(2)} PKR</div>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg shadow-sm border-b-2 ${summary.netProfit >= 0 ? 'border-indigo-500' : 'border-red-500'}">
+                    <div class="text-sm font-medium text-gray-500">Net Profit</div>
+                    <div class="text-xl font-extrabold ${summary.netProfit >= 0 ? 'text-indigo-700' : 'text-red-700'} mt-1">${summary.netProfit.toFixed(2)} PKR</div>
+                </div>
+            `;
+            
+            // 2. Render Detailed Breakdown
+            durationDetailsContainer.innerHTML = '';
+            
+            // Combine and sort by date
+            const combinedData = [
+                ...data.sales.map(s => ({ ...s, type: 'Sale', amount: s.totalAmount, description: `Sale ID ${s.id}` })),
+                ...data.expenses.map(e => ({ ...e, type: 'Expense', amount: e.amount, description: e.description }))
+            ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            
+            if (combinedData.length === 0) {
+                durationDetailsContainer.innerHTML = '<p class="text-gray-500 p-2">No records found for this period.</p>';
                 return;
             }
-            noSalesMessage.style.display = 'none';
 
-            sales.forEach(sale => {
-                const saleCard = document.createElement('div');
-                saleCard.className = 'p-4 border border-gray-200 rounded-lg shadow-sm bg-white hover:shadow-md transition duration-150';
+            combinedData.forEach(item => {
+                const isSale = item.type === 'Sale';
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `p-3 rounded-lg shadow-sm flex justify-between items-center ${isSale ? 'bg-green-50' : 'bg-red-50'}`;
                 
-                const dateStr = formatTimestamp(sale.date);
-                
-                const itemsArray = Array.isArray(sale.items) ? sale.items : [];
-                const itemsSummary = itemsArray.map(item => `${item.type} (${item.quantity})`).join(', ');
-
-                saleCard.innerHTML = `
-                    <div class="flex justify-between items-center mb-2">
-                        <div class="text-lg font-bold text-indigo-700">${sale.totalAmount.toFixed(2)} PKR</div>
-                        <span class="text-sm text-gray-500">${dateStr}</span>
-                    </div>
-                    <p class="text-sm text-gray-600 mb-3 truncate" title="${itemsSummary}">Items: ${itemsSummary}</p>
-                    
-                    <div class="flex justify-between items-center pt-2 border-t border-gray-100">
-                        <!-- Print Button -->
-                        <button data-sale-id="${sale.id}" class="print-btn text-blue-600 hover:text-blue-800 font-medium transition duration-150 flex items-center text-sm">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M5 4v2a2 2 0 002 2h6a2 2 0 002-2V4h1a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2h1zm0 2h10v10a1 1 0 01-1 1H6a1 1 0 01-1-1V6z" clip-rule="evenodd" />
-                                <path d="M10 12a1 1 0 100-2 1 1 0 000 2z" />
-                            </svg>
-                            Print Receipt
-                        </button>
-                        
-                        <!-- Delete Button -->
-                        <button data-sale-id="${sale.id}" class="delete-sale-btn text-red-500 hover:text-red-700 font-medium transition duration-150 flex items-center text-sm">
-                            <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            Delete
-                        </button>
-                    </div>
-                `;
-                salesListContainer.appendChild(saleCard);
-            });
-            
-            // Add click listeners to print buttons
-            document.querySelectorAll('.print-btn').forEach(button => {
-                button.addEventListener('click', async (e) => {
-                    const saleId = e.currentTarget.dataset.saleId;
-                    const sales = loadSalesFromLocalStorage();
-                    const saleToPrint = sales.find(s => String(s.id) === saleId);
-                    
-                    if (saleToPrint) {
-                        printReceipt(saleToPrint);
-                    } else {
-                        showMessage('Sale record not found.', true);
-                    }
-                });
-            });
-            
-            // Add click listeners to DELETE buttons
-            document.querySelectorAll('.delete-sale-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const saleId = e.currentTarget.dataset.saleId;
-                    deleteSale(saleId);
-                });
-            });
-        }
-        
-        /** Renders the list of all saved expenses */
-        function renderExpenseList(expenses) {
-            expensesListContainer.innerHTML = '';
-            
-            if (expenses.length === 0) {
-                noExpensesMessage.style.display = 'block';
-                return;
-            }
-            noExpensesMessage.style.display = 'none';
-
-            expenses.forEach(expense => {
-                const expenseCard = document.createElement('div');
-                expenseCard.className = 'p-4 border border-gray-200 rounded-lg shadow-sm bg-white hover:shadow-md transition duration-150 flex justify-between items-center';
-                
-                const dateStr = formatTimestamp(expense.date);
-
-                expenseCard.innerHTML = `
+                itemDiv.innerHTML = `
                     <div class="flex-grow">
-                        <div class="text-md font-medium text-gray-800">${expense.description}</div>
-                        <span class="text-sm text-gray-500">${dateStr}</span>
+                        <span class="font-bold ${isSale ? 'text-green-800' : 'text-red-800'}">${item.type}</span>
+                        <p class="text-sm text-gray-700">${isSale ? (Array.isArray(item.items) ? item.items.map(i => i.type).join(', ') : 'Details available on receipt') : item.description}</p>
+                        <span class="text-xs text-gray-500">${formatTimestamp(item.date)}</span>
                     </div>
-                    <div class="flex items-center space-x-3">
-                        <div class="text-lg font-bold text-red-700">${expense.amount.toFixed(2)} PKR</div>
-                        
-                        <!-- Delete Button -->
-                        <button data-expense-id="${expense.id}" class="delete-expense-btn text-gray-400 hover:text-red-600 transition duration-150 p-1 rounded" title="Delete Expense">
-                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                        </button>
+                    <div class="text-lg font-extrabold ${isSale ? 'text-green-700' : 'text-red-700'}">
+                        ${isSale ? '+' : '-'} ${item.amount.toFixed(2)} PKR
                     </div>
                 `;
-                expensesListContainer.appendChild(expenseCard);
-            });
-            
-            // Add click listeners to DELETE buttons
-            document.querySelectorAll('.delete-expense-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const expenseId = e.currentTarget.dataset.expenseId;
-                    deleteExpense(expenseId);
-                });
+                durationDetailsContainer.appendChild(itemDiv);
             });
         }
         
-        /** Generates and triggers the print functionality for a saved sale */
+        // --- PRINTING FUNCTIONS ---
+
+        /** Generates and triggers the print functionality for a single saved sale (RECEIPT) */
         function printReceipt(sale) {
             const dateStr = formatTimestamp(sale.date);
             
-            // Item rows HTML (removed border classes)
-            let itemsHtml = sale.items.map(item => `
+            let itemsHtml = (Array.isArray(sale.items) ? sale.items : []).map(item => `
                 <tr>
                     <td class="py-0 px-1">${item.type}</td>
                     <td class="py-0 px-1 text-center">${item.quantity}</td>
@@ -606,12 +583,11 @@
                 </tr>
             `).join('');
 
-            // Updated receipt format: No borders, smaller font, dashed line separators
             const receiptHtml = `
                 <div class="max-w-xs mx-auto p-2">
                     <div class="text-center mb-2">
-                        <h2 class="font-extrabold text-sm mb-0">${COMPANY_NAME}</h2> <!-- Reduced size for header -->
-                        <p class="text-xs italic">${COMPANY_ADDRESS}</p> <!-- Smallest size for address -->
+                        <h2 class="font-extrabold text-sm mb-0">${COMPANY_NAME}</h2> 
+                        <p class="text-xs italic">${COMPANY_ADDRESS}</p> 
                     </div>
                     
                     <div style="border-top: 1px dashed black; margin-top: 4px; margin-bottom: 4px;"></div>
@@ -637,7 +613,7 @@
 
                     <div style="border-top: 1px dashed black; margin-top: 2px;"></div>
                     
-                    <div class="flex justify-between font-bold text-xs pt-1"> <!-- Reduced size for total -->
+                    <div class="flex justify-between font-bold text-xs pt-1">
                         <span>TOTAL</span>
                         <span>${sale.totalAmount.toFixed(2)} PKR</span>
                     </div>
@@ -651,7 +627,84 @@
             receiptPrintArea.innerHTML = receiptHtml;
             window.print();
         }
+        
+        /** Generates and triggers the print functionality for the history report */
+        function printHistoryReport(data) {
+            if (!data || data.sales.length === 0 && data.expenses.length === 0) {
+                showMessage("No data to print for the selected period.", true);
+                return;
+            }
+            
+            const { summary, sales, expenses } = data;
+            const startDate = startDateInput.value || 'Beginning';
+            const endDate = endDateInput.value || 'Today';
 
+            // Detailed Transactions (Sales + Expenses)
+            const combinedData = [
+                ...sales.map(s => ({ ...s, type: 'Sale', amount: s.totalAmount, description: `Sale ID ${s.id}` })),
+                ...expenses.map(e => ({ ...e, type: 'Expense', amount: e.amount, description: e.description }))
+            ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Sort by date ascending for report
+
+            let transactionsHtml = combinedData.map(item => `
+                <tr class="${item.type === 'Sale' ? 'text-green-800' : 'text-red-800'} border-b border-gray-100">
+                    <td class="py-1 px-2">${formatTimestamp(item.date)}</td>
+                    <td class="py-1 px-2">${item.type}</td>
+                    <td class="py-1 px-2 text-left">${item.type === 'Sale' ? (Array.isArray(item.items) ? item.items.map(i => i.type).join(', ') : `Sale ID ${item.id}`) : item.description}</td>
+                    <td class="py-1 px-2 text-right font-medium">${item.type === 'Sale' ? '+' : '-'} ${item.amount.toFixed(2)}</td>
+                </tr>
+            `).join('');
+
+            const reportHtml = `
+                <div class="max-w-3xl mx-auto p-4">
+                    <div class="text-center mb-6">
+                        <h2 class="text-lg font-extrabold mb-0">${COMPANY_NAME}</h2>
+                        <p class="text-sm">${COMPANY_ADDRESS}</p>
+                        <h3 class="text-xl font-bold mt-4">FINANCIAL HISTORY REPORT</h3>
+                        <p class="text-md text-gray-700 mt-1">
+                            From: <span class="font-semibold">${startDate}</span> To: <span class="font-semibold">${endDate}</span>
+                        </p>
+                    </div>
+
+                    <!-- Summary Table -->
+                    <table class="w-full mb-6 border-2 border-gray-500">
+                        <tr class="bg-gray-200">
+                            <td class="p-2 font-bold w-1/3 text-green-700">TOTAL SALES</td>
+                            <td class="p-2 font-bold w-1/3 text-red-700">TOTAL EXPENSES</td>
+                            <td class="p-2 font-bold w-1/3 ${summary.netProfit >= 0 ? 'text-indigo-700' : 'text-red-700'}">NET PROFIT</td>
+                        </tr>
+                        <tr class="text-center bg-white font-extrabold text-lg">
+                            <td class="p-2 text-green-700">${summary.totalSales.toFixed(2)} PKR</td>
+                            <td class="p-2 text-red-700">${summary.totalExpenses.toFixed(2)} PKR</td>
+                            <td class="p-2 ${summary.netProfit >= 0 ? 'text-indigo-700' : 'text-red-700'}">${summary.netProfit.toFixed(2)} PKR</td>
+                        </tr>
+                    </table>
+                    
+                    <!-- Transactions Details -->
+                    <h4 class="text-lg font-bold mt-6 mb-3 border-b pb-1">All Transactions (${combinedData.length})</h4>
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 font-bold border-b border-gray-400">
+                                <th class="py-2 px-2 text-left w-[25%]">Date/Time</th>
+                                <th class="py-2 px-2 text-left w-[15%]">Type</th>
+                                <th class="py-2 px-2 text-left w-[40%]">Description</th>
+                                <th class="py-2 px-2 text-right w-[20%]">Amount (PKR)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${transactionsHtml}
+                        </tbody>
+                    </table>
+                    
+                    <div class="text-center mt-8 text-xs italic">
+                        Report generated on ${formatTimestamp(new Date().toISOString())}
+                    </div>
+                </div>
+            `;
+            
+            receiptPrintArea.innerHTML = reportHtml;
+            window.print();
+        }
+        
         // --- GENERAL APP FLOW FUNCTIONS ---
 
         /** Resets the sale form and cart */
@@ -659,7 +712,6 @@
             currentCart = [];
             renderCart();
             quantityInput.value = 1;
-            // Set default to the first standard service (Photocopy B/W single-sided)
             serviceTypeSelect.value = 'Photocopy B/W'; 
             updatePricePerUnit();
             customItemNameInput.value = ''; // Reset custom item name
@@ -673,6 +725,10 @@
         
         /** Initial load and display of the app */
         function initializeApp() {
+            // Set initial date range to today for easy use
+            const today = new Date().toISOString().split('T')[0];
+            endDateInput.value = today;
+            
             // Load and render sales and expenses
             const sales = loadSalesFromLocalStorage();
             renderSalesList(sales);
@@ -681,7 +737,7 @@
             renderExpenseList(expenses);
 
             updatePricePerUnit();
-            updateSummary();
+            updateAllSummaries(); // Initial population of all summary views
         }
 
         // --- EVENT HANDLERS: SALE ---
@@ -691,15 +747,10 @@
             const selectedType = serviceTypeSelect.value;
             
             if (selectedType === 'Custom Stationery/Item') {
-                // If Custom is selected, show the manual description input
                 customItemNameContainer.style.display = 'block';
-                // Reset price to 0, forcing manual entry by the user
                 pricePerUnitInput.value = '0.00'; 
             } else {
-                // If a fixed service is selected, hide the manual description input
                 customItemNameContainer.style.display = 'none';
-                
-                // Set default price from list
                 const price = PRICE_LIST[selectedType] || 0;
                 pricePerUnitInput.value = price.toFixed(2);
             }
@@ -717,16 +768,14 @@
                 return;
             }
             
-            // If custom option is selected, validate and use the custom name
             if (type === 'Custom Stationery/Item') {
                 const customName = customItemNameInput.value.trim();
                 if (!customName) {
-                    showMessage('Please enter the name of the custom item (Zaroori).', true);
+                    showMessage('Please enter the name of the custom item (Required).', true);
                     return;
                 }
-                type = customName; // Use the custom name as the item type
+                type = customName; 
             }
-
 
             const subTotal = quantity * unitPrice;
             
@@ -734,12 +783,11 @@
             
             renderCart();
             quantityInput.value = 1; 
-            customItemNameInput.value = ''; // Clear custom input after adding
+            customItemNameInput.value = ''; 
             showMessage(`${type} added to the bill.`);
             
-            // If it was a custom item, switch back to the first non-custom option or reset
             if (serviceTypeSelect.value === 'Custom Stationery/Item') {
-                serviceTypeSelect.value = 'Photocopy B/W'; // Reset to a fixed option
+                serviceTypeSelect.value = 'Photocopy B/W'; 
                 updatePricePerUnit();
             }
         });
@@ -808,6 +856,206 @@
             saveExpenseBtn.disabled = false;
             saveExpenseBtn.textContent = 'Save Expense';
         });
+        
+        // --- EVENT HANDLERS: HISTORY ---
+        
+        historyForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            generateReportBtn.textContent = 'Generating...';
+            generateReportBtn.disabled = true;
+            printReportBtn.disabled = true;
+            historyResultsContainer.classList.add('hidden');
+            
+            const startDateStr = startDateInput.value;
+            const endDateStr = endDateInput.value;
+            
+            if (!startDateStr && !endDateStr) {
+                showMessage('Please select at least a start or end date.', true);
+                generateReportBtn.textContent = 'Generate Report';
+                generateReportBtn.disabled = false;
+                return;
+            }
+            
+            // Check if start date is after end date
+            if (startDateStr && endDateStr && new Date(startDateStr) > new Date(endDateStr)) {
+                showMessage('Start Date cannot be after End Date.', true);
+                generateReportBtn.textContent = 'Generate Report';
+                generateReportBtn.disabled = false;
+                return;
+            }
+
+            const data = getFilteredData(startDateStr, endDateStr);
+            renderHistoryReport(data);
+            
+            generateReportBtn.textContent = 'Report Generated!';
+            generateReportBtn.disabled = false;
+        });
+        
+        printReportBtn.addEventListener('click', () => {
+            if (latestReportData) {
+                printHistoryReport(latestReportData);
+            } else {
+                showMessage('Please generate a report first.', true);
+            }
+        });
+
+        // --- RENDERING FUNCTIONS: CART & LISTS (Unchanged) ---
+        
+        /** Calculates and updates the cart's total amount */
+        function updateCartTotal() {
+            const total = currentCart.reduce((sum, item) => sum + item.subTotal, 0);
+            totalAmountSpan.textContent = total.toFixed(2);
+            saveSaleBtn.disabled = currentCart.length === 0;
+            emptyCartMessage.style.display = currentCart.length === 0 ? 'block' : 'none';
+        }
+
+        /** Renders the current items in the cart UI */
+        function renderCart() {
+            cartList.innerHTML = '';
+            currentCart.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between items-center p-3 bg-white border border-gray-200 rounded-lg';
+                li.innerHTML = `
+                    <div class="flex-grow">
+                        <span class="font-medium">${item.type}</span> 
+                        <span class="text-sm text-gray-500">(${item.quantity} x ${item.unitPrice.toFixed(2)} PKR)</span>
+                    </div>
+                    <div class="font-bold text-indigo-600">${item.subTotal.toFixed(2)} PKR</div>
+                    <button data-index="${index}" class="remove-item-btn ml-4 text-red-500 hover:text-red-700 transition duration-150" title="Remove Item">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                `;
+                cartList.appendChild(li);
+            });
+            updateCartTotal();
+            
+            document.querySelectorAll('.remove-item-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const index = parseInt(e.currentTarget.dataset.index, 10);
+                    currentCart.splice(index, 1);
+                    renderCart();
+                    showMessage('Item removed.');
+                });
+            });
+        }
+        
+        /** Renders the list of all saved sales */
+        function renderSalesList(sales) {
+            salesListContainer.innerHTML = '';
+            
+            if (sales.length === 0) {
+                noSalesMessage.style.display = 'block';
+                return;
+            }
+            noSalesMessage.style.display = 'none';
+
+            sales.slice(0, 10).forEach(sale => { // Show only recent 10
+                const saleCard = document.createElement('div');
+                saleCard.className = 'p-4 border border-gray-200 rounded-lg shadow-sm bg-white hover:shadow-md transition duration-150';
+                
+                const dateStr = formatTimestamp(sale.date);
+                
+                const itemsArray = Array.isArray(sale.items) ? sale.items : [];
+                const itemsSummary = itemsArray.map(item => `${item.type} (${item.quantity})`).join(', ');
+
+                saleCard.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="text-xl font-bold text-indigo-700">${sale.totalAmount.toFixed(2)} PKR</div>
+                        <span class="text-sm text-gray-500">${dateStr}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-3 truncate" title="${itemsSummary}">Items: ${itemsSummary}</p>
+                    
+                    <div class="flex justify-between items-center pt-2 border-t border-gray-100">
+                        <!-- Print Button -->
+                        <button data-sale-id="${sale.id}" class="print-btn text-blue-600 hover:text-blue-800 font-medium transition duration-150 flex items-center text-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M5 4v2a2 2 0 002 2h6a2 2 0 002-2V4h1a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2h1zm0 2h10v10a1 1 0 01-1 1H6a1 1 0 01-1-1V6z" clip-rule="evenodd" />
+                                <path d="M10 12a1 1 0 100-2 1 1 0 000 2z" />
+                            </svg>
+                            Print Receipt
+                        </button>
+                        
+                        <!-- Delete Button -->
+                        <button data-sale-id="${sale.id}" class="delete-sale-btn text-red-500 hover:text-red-700 font-medium transition duration-150 flex items-center text-sm">
+                            <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Delete
+                        </button>
+                    </div>
+                `;
+                salesListContainer.appendChild(saleCard);
+            });
+            
+            // Add click listeners to print buttons
+            document.querySelectorAll('.print-btn').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const saleId = e.currentTarget.dataset.saleId;
+                    const sales = loadSalesFromLocalStorage();
+                    const saleToPrint = sales.find(s => String(s.id) === saleId);
+                    
+                    if (saleToPrint) {
+                        printReceipt(saleToPrint);
+                    } else {
+                        showMessage('Sale record not found.', true);
+                    }
+                });
+            });
+            
+            // Add click listeners to DELETE buttons
+            document.querySelectorAll('.delete-sale-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const saleId = e.currentTarget.dataset.saleId;
+                    deleteSale(saleId);
+                });
+            });
+        }
+        
+        /** Renders the list of all saved expenses */
+        function renderExpenseList(expenses) {
+            expensesListContainer.innerHTML = '';
+            
+            if (expenses.length === 0) {
+                noExpensesMessage.style.display = 'block';
+                return;
+            }
+            noExpensesMessage.style.display = 'none';
+
+            expenses.slice(0, 10).forEach(expense => { // Show only recent 10
+                const expenseCard = document.createElement('div');
+                expenseCard.className = 'p-4 border border-gray-200 rounded-lg shadow-sm bg-white hover:shadow-md transition duration-150 flex justify-between items-center';
+                
+                const dateStr = formatTimestamp(expense.date);
+
+                expenseCard.innerHTML = `
+                    <div class="flex-grow">
+                        <div class="text-md font-medium text-gray-800">${expense.description}</div>
+                        <span class="text-sm text-gray-500">${dateStr}</span>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <div class="text-xl font-bold text-red-700">${expense.amount.toFixed(2)} PKR</div>
+                        
+                        <!-- Delete Button -->
+                        <button data-expense-id="${expense.id}" class="delete-expense-btn text-gray-400 hover:text-red-600 transition duration-150 p-1 rounded" title="Delete Expense">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                expensesListContainer.appendChild(expenseCard);
+            });
+            
+            // Add click listeners to DELETE buttons
+            document.querySelectorAll('.delete-expense-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const expenseId = e.currentTarget.dataset.expenseId;
+                    deleteExpense(expenseId);
+                });
+            });
+        }
 
         // --- APP START ---
         document.addEventListener('DOMContentLoaded', initializeApp);
