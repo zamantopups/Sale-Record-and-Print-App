@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop Sales & Expense Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Use Inter font for a modern look */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f9;
+        }
+        /* Custom styles for printing */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #receipt-print-area, #receipt-print-area * {
+                visibility: visible;
+                /* Set font properties for light ink printing */
+                font-family: 'Arial Black', sans-serif !important;
+                font-weight: 500 !important; /* Slightly lighter than bold (700) */
+            }
+            #receipt-print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 5mm; /* Padding for receipt */
+                font-size: 8pt; /* Small font size for thermal paper */
+            }
+            /* Remove all borders */
+            .receipt-line {
+                border-top: 1px dashed #333 !important;
+                padding-top: 5px;
+                margin-top: 5px;
+            }
+            .receipt-header, .receipt-footer {
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            
+            /* History Report specific print styles */
+            #history-report-print-area {
+                visibility: visible;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 10mm;
+                font-size: 10pt;
+            }
+            #history-report-print-area table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            #history-report-print-area th, #history-report-print-area td {
+                border: 1px solid #ccc;
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <script>
+        // --- CONSTANTS ---
+        const COMPANY_NAME = "Zaman Printing Services";
+        const COMPANY_ADDRESS = "Basement No. 6, Al-Anayat Shopping Mall, G-11 Markaz, Islamabad";
+        const SALES_KEY = 'shop_sales_records';
+        const EXPENSES_KEY = 'shop_expenses_records';
+        const CUSTOM_PRICE_KEY = 'custom_price_list';
+        const CURRENCY = 'PKR'; // Currency code (e.g., 'PKR', 'USD, 'AED')
+
+        // Initial default price list (can be managed via modal)
+        const DEFAULT_PRICE_LIST = {
+            'Photocopy - B/W (Single Sided)': 7.00,
+            'Photocopy - B/W (Double Sided)': 14.00,
+            'Photocopy - Color (Single Sided)': 40.00,
+            'Photocopy - Color (Double Sided)': 80.00,
+            'Printing - B/W (Single Sided)': 10.00,
+            'Printing - B/W (Double Sided)': 20.00,
+            'Printing - Color (Single Sided)': 40.00,
+            'Printing - Color (Double Sided)': 80.00,
+            'Lamination': 50.00,
+            'Binding (Spiral)': 150.00,
+            'Typing': 300.00,
+            'Editing': 100.00,
+            'Stationery / Other Item': 0.00 // Default price for custom manual entry
+        };
+
+        // --- GLOBAL STATE ---
+        let currentSales = [];
+        let currentExpenses = [];
+        let priceList = {};
+        
+        // --- UTILITY FUNCTIONS ---
+
+        /**
+         * Safely escapes single quotes in a string.
+         * This prevents item names with single quotes (e.g., "Customer's Print") 
+         * from breaking the JavaScript function call when inserted into HTML attributes like onclick.
+         * @param {string} str - The string to escape.
+         * @returns {string} - The escaped string.
+         */
+        function escapeQuotes(str) {
+            return str.replace(/'/g, "\\'");
+        }
+
+        function loadData() {
+            // Load and merge default and custom price list
+            const customPrices = JSON.parse(localStorage.getItem(CUSTOM_PRICE_KEY) || '{}');
+            priceList = { ...DEFAULT_PRICE_LIST, ...customPrices };
+
+            // Load Sales and Expenses
+            currentSales = JSON.parse(localStorage.getItem(SALES_KEY) || '[]');
+            currentExpenses = JSON.parse(localStorage.getItem(EXPENSES_KEY) || '[]');
+        }
+
+        function saveData() {
+            localStorage.setItem(SALES_KEY, JSON.stringify(currentSales));
+            localStorage.setItem(EXPENSES_KEY, JSON.stringify(currentExpenses));
+            localStorage.setItem(CUSTOM_PRICE_KEY, JSON.stringify(priceList));
+        }
+
+        function formatCurrency(amount) {
+            // Use the global CURRENCY constant
+            return `${amount.toFixed(2)} ${CURRENCY}`; 
+        }
+
+        function getMonthKey(date) {
+            const d = new Date(date);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        }
+        
+        // --- CORE APPLICATION LOGIC ---
+        
+        // Function to show temporary messages in the Item Manager Modal
+        function showMessageBox(message, isError = false) {
+            const box = document.getElementById('item-manager-message');
+            if (box) {
+                box.textContent = message;
+                box.className = `p-3 rounded-lg text-sm mb-4 ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+                setTimeout(() => {
+                    box.textContent = '';
+                    box.className = 'hidden';
+                }, 4000);
+                box.classList.remove('hidden');
+            }
+        }
+
+        function updateUI() {
+            loadData();
+            renderSummary();
+            renderSaleEntryForm();
+            renderRecentSales();
+            renderRecentExpenses();
+        }
+
+        function renderSummary() {
+            const summaryDiv = document.getElementById('summary-dashboard');
+            if (!summaryDiv) return;
+
+            const now = new Date();
+            const currentMonthKey = getMonthKey(now);
+
+            // Filter data for the current month
+            const monthSales = currentSales.filter(sale => getMonthKey(sale.date) === currentMonthKey);
+            const monthExpenses = currentExpenses.filter(exp => getMonthKey(exp.date) === currentMonthKey);
+
+            // Calculate totals
+            const totalSales = monthSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+            const totalExpenses = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+            const netProfit = totalSales - totalExpenses;
+            
+            const totalCreditSales = monthSales
+                .filter(sale => sale.transactionType === 'Credit')
+                .reduce((sum, sale) => sum + sale.totalAmount, 0);
+
+            const totalCashSales = totalSales - totalCreditSales;
+            
+            const profitColor = netProfit >= 0 ? 'text-green-600' : 'text-red-600';
+
+            summaryDiv.innerHTML = `
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Current Month Summary (${now.toLocaleString('en-US', { month: 'long', year: 'numeric' })})</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-blue-100 p-4 rounded-lg shadow-md">
+                        <p class="text-sm text-blue-600">Total Sales</p>
+                        <p class="text-xl font-bold text-blue-800">${formatCurrency(totalSales)}</p>
+                    </div>
+                    <div class="bg-yellow-100 p-4 rounded-lg shadow-md">
+                        <p class="text-sm text-yellow-600">Total Expenses</p>
+                        <p class="text-xl font-bold text-yellow-800">${formatCurrency(totalExpenses)}</p>
+                    </div>
+                    <div class="bg-green-100 p-4 rounded-lg shadow-md col-span-2 md:col-span-1">
+                        <p class="text-sm text-green-600">Net Profit</p>
+                        <p class="text-xl font-bold ${profitColor}">${formatCurrency(netProfit)}</p>
+                    </div>
+                    <div class="bg-gray-100 p-4 rounded-lg shadow-md">
+                        <p class="text-sm text-gray-600">Cash Sales</p>
+                        <p class="text-xl font-bold text-gray-800">${formatCurrency(totalCashSales)}</p>
+                    </div>
+                    <div class="bg-red-100 p-4 rounded-lg shadow-md">
+                        <p class="text-sm text-red-600">Credit Sales Due</p>
+                        <p class="text-xl font-bold text-red-800">${formatCurrency(totalCreditSales)}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSaleEntryForm() {
+            const categorySelect = document.getElementById('sale-category');
+            if (!categorySelect) return;
+
+            // Clear existing options
+            categorySelect.innerHTML = ''; 
+
+            // Grouping and adding options
+            const optgroups = {
+                'Prints & Copies': [],
+                'Finishing': [],
+                'Other Services': [],
+                'Stationery & Custom Items': []
+            };
+
+            for (const [name, price] of Object.entries(priceList).sort()) {
+                let group = 'Stationery & Custom Items'; // Default for custom items
+
+                if (name.startsWith('Photocopy') || name.startsWith('Printing')) {
+                    group = 'Prints & Copies';
+                } else if (name.startsWith('Lamination') || name.startsWith('Binding')) {
+                    group = 'Finishing';
+                } else if (name.startsWith('Typing') || name.startsWith('Editing')) {
+                    group = 'Other Services';
+                }
+                
+                // Add the option to the correct group
+                optgroups[group].push(`<option value="${name}" data-price="${price}">${name} (${formatCurrency(price)})</option>`);
+            }
+
+            // Render optgroups
+            for (const [groupName, options] of Object.entries(optgroups)) {
+                if (options.length > 0) {
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = groupName;
+                    options.forEach(optionHTML => optgroup.innerHTML += optionHTML);
+                    categorySelect.appendChild(optgroup);
+                }
+            }
+            
+            // Re-run event listener setup
+            setupSaleFormListeners();
+        }
+
+        function setupSaleFormListeners() {
+            const categorySelect = document.getElementById('sale-category');
+            const itemNameInput = document.getElementById('custom-item-name');
+            const priceInput = document.getElementById('sale-price');
+            const customItemDiv = document.getElementById('custom-item-container');
+            const transactionTypeSelect = document.getElementById('transaction-type');
+            const customerNameInput = document.getElementById('customer-name');
+            const customerNameContainer = document.getElementById('customer-name-container');
+
+            if (!categorySelect || !itemNameInput || !priceInput || !customItemDiv || !transactionTypeSelect || !customerNameInput || !customerNameContainer) return;
+
+            // 1. Update Price and Custom Item Visibility
+            categorySelect.onchange = function() {
+                const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+                const price = parseFloat(selectedOption.getAttribute('data-price'));
+                priceInput.value = price.toFixed(2);
+
+                const isCustom = selectedOption.value === 'Stationery / Other Item';
+                if (isCustom) {
+                    customItemDiv.classList.remove('hidden');
+                    itemNameInput.required = true;
+                    // Reset name for next entry if default is selected
+                    itemNameInput.value = ''; 
+                } else {
+                    customItemDiv.classList.add('hidden');
+                    itemNameInput.required = false;
+                    itemNameInput.value = selectedOption.value; // Use selected option name as default item name
+                }
+            };
+
+            // Trigger once on load
+            categorySelect.onchange(); 
+
+            // 2. Transaction Type and Customer Name Visibility
+            transactionTypeSelect.onchange = function() {
+                const isCredit = transactionTypeSelect.value === 'Credit';
+                if (isCredit) {
+                    customerNameContainer.classList.remove('hidden');
+                    customerNameInput.required = true;
+                } else {
+                    customerNameContainer.classList.add('hidden');
+                    customerNameInput.required = false;
+                    customerNameInput.value = '';
+                }
+            };
+            // Trigger once on load
+            transactionTypeSelect.onchange(); 
+        }
+
+        function addSale(event) {
+            event.preventDefault();
+            const form = event.target;
+            
+            const category = form.elements['sale-category'].value;
+            const customItemName = form.elements['custom-item-name'].value.trim();
+            const quantity = parseFloat(form.elements['sale-quantity'].value);
+            const price = parseFloat(form.elements['sale-price'].value);
+            const transactionType = form.elements['transaction-type'].value;
+            const customerName = form.elements['customer-name'].value.trim();
+            
+            if (quantity <= 0 || isNaN(quantity) || price < 0 || isNaN(price)) {
+                console.error("Invalid quantity or price.");
+                return;
+            }
+
+            const itemName = category === 'Stationery / Other Item' && customItemName ? customItemName : form.elements['custom-item-name'].value;
+            
+            const newSale = {
+                id: Date.now(),
+                date: new Date().toISOString().substring(0, 10),
+                itemName: itemName,
+                quantity: quantity,
+                pricePerUnit: price,
+                totalAmount: quantity * price,
+                transactionType: transactionType,
+                customerName: transactionType === 'Credit' ? customerName : ''
+            };
+
+            currentSales.unshift(newSale); // Add to the beginning
+            saveData();
+            updateUI();
+            form.reset();
+            // Re-setup listeners to restore default visibility states
+            setupSaleFormListeners(); 
+        }
+
+        function deleteSale(id) {
+            if (confirm("Kya aap sach mein is sale record ko hatana chahte hain?")) { // Confirmation in Hindi (Latin)
+                currentSales = currentSales.filter(sale => sale.id !== id);
+                saveData();
+                updateUI();
+            }
+        }
+
+        function renderRecentSales() {
+            const list = document.getElementById('recent-sales-list');
+            if (!list) return;
+
+            const recentSales = currentSales.slice(0, 5); // Show only the 5 most recent
+            
+            if (recentSales.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 italic">Koi bhi recent sale record nahi mila.</p>'; // Hindi (Latin)
+                return;
+            }
+
+            list.innerHTML = recentSales.map(sale => {
+                const isCredit = sale.transactionType === 'Credit';
+                const typeBadge = isCredit 
+                    ? `<span class="inline-block bg-red-200 text-red-800 text-xs px-2 rounded-full font-semibold">UDHAAR/CREDIT (${sale.customerName})</span>` // Hindi (Latin)
+                    : `<span class="inline-block bg-green-200 text-green-800 text-xs px-2 rounded-full font-semibold">CASH</span>`;
+
+                return `
+                    <li class="p-3 bg-white rounded-lg shadow-sm flex justify-between items-center border-l-4 ${isCredit ? 'border-red-500' : 'border-green-500'}">
+                        <div class="flex-grow">
+                            <div class="text-sm font-semibold text-gray-800">${sale.itemName} x ${sale.quantity}</div>
+                            <div class="text-xs text-gray-500">${new Date(sale.id).toLocaleDateString()} | ${typeBadge}</div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg font-bold text-gray-900">${formatCurrency(sale.totalAmount)}</span>
+                            <button onclick="printReceipt(${sale.id})" class="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition duration-150" title="Raseed (Receipt) Print Karein">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M18 6h-4a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h4"></path><path d="M12 18H6a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-6"></path></svg>
+                            </button>
+                            <button onclick="deleteSale(${sale.id})" class="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition duration-150" title="Sale Hataein">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            </button>
+                        </div>
+                    </li>
+                `;
+            }).join('');
+        }
+
+        // --- EXPENSE LOGIC ---
+
+        function addExpense(event) {
+            event.preventDefault();
+            const form = event.target;
+            
+            const description = form.elements['expense-description'].value.trim();
+            const amount = parseFloat(form.elements['expense-amount'].value);
+            const date = form.elements['expense-date'].value;
+
+            if (description === '' || amount <= 0 || isNaN(amount) || date === '') {
+                console.error("Invalid expense details.");
+                return;
+            }
+            
+            const newExpense = {
+                id: Date.now(),
+                date: date,
+                description: description,
+                amount: amount
+            };
+
+            currentExpenses.unshift(newExpense); // Add to the beginning
+            saveData();
+            updateUI();
+            form.reset();
+        }
+
+        function deleteExpense(id) {
+            if (confirm("Kya aap sach mein is kharch (expense) record ko hatana chahte hain?")) { // Confirmation in Hindi (Latin)
+                currentExpenses = currentExpenses.filter(exp => exp.id !== id);
+                saveData();
+                updateUI();
+            }
+        }
+
+        function renderRecentExpenses() {
+            const list = document.getElementById('recent-expenses-list');
+            if (!list) return;
+
+            const recentExpenses = currentExpenses.slice(0, 5); // Show only the 5 most recent
+            
+            if (recentExpenses.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 italic">Koi bhi recent kharch (expense) record nahi mila.</p>'; // Hindi (Latin)
+                return;
+            }
+
+            list.innerHTML = recentExpenses.map(exp => `
+                <li class="p-3 bg-white rounded-lg shadow-sm flex justify-between items-center border-l-4 border-yellow-500">
+                    <div class="flex-grow">
+                        <div class="text-sm font-semibold text-gray-800">${exp.description}</div>
+                        <div class="text-xs text-gray-500">${new Date(exp.date).toLocaleDateString()}</div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-lg font-bold text-gray-900">${formatCurrency(exp.amount)}</span>
+                        <button onclick="deleteExpense(${exp.id})" class="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition duration-150" title="Kharch Hataein">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </div>
+                </li>
+            `).join('');
+        }
+        
+        // --- PRINTING LOGIC ---
+
+        function printReceipt(id) {
+            const sale = currentSales.find(s => s.id === id);
+            if (!sale) {
+                console.error('Sale record not found for printing.');
+                return;
+            }
+
+            // Use a simple mechanism instead of alert
+            if (typeof confirm === 'function' && !confirm('Kya aap is raseed (receipt) ko print karna chahte hain?')) { // Confirmation in Hindi (Latin)
+                return;
+            }
+
+            // Prepare item list (for single item sales in this current app structure)
+            const itemRows = `
+                <tr class="font-normal">
+                    <td class="pt-1 text-left">${sale.itemName}</td>
+                    <td class="pt-1 text-center">${sale.quantity}</td>
+                    <td class="pt-1 text-right">${formatCurrency(sale.pricePerUnit)}</td>
+                    <td class="pt-1 text-right">${formatCurrency(sale.totalAmount)}</td>
+                </tr>
+            `;
+
+            const receiptContent = `
+                <div class="receipt-header text-center mb-4">
+                    <h1 class="text-xl font-extrabold">${COMPANY_NAME}</h1>
+                    <p class="text-sm">${COMPANY_ADDRESS}</p>
+                    <div class="receipt-line my-2"></div>
+                </div>
+                
+                <table class="w-full text-left table-fixed">
+                    <tbody>
+                        <tr>
+                            <td class="font-bold w-1/4">Tarikh (Date):</td>
+                            <td colspan="3" class="text-right">${new Date(sale.id).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold">Qism (Type):</td>
+                            <td colspan="3" class="text-right">${sale.transactionType.toUpperCase()}</td>
+                        </tr>
+                        ${sale.transactionType === 'Credit' ? `
+                            <tr>
+                                <td class="font-bold">Gahak (Customer):</td>
+                                <td colspan="3" class="text-right font-extrabold">${sale.customerName}</td>
+                            </tr>
+                        ` : ''}
+                    </tbody>
+                </table>
+                
+                <div class="receipt-line my-2"></div>
+
+                <table class="w-full text-left table-fixed">
+                    <thead>
+                        <tr>
+                            <th class="text-left">Item</th>
+                            <th class="text-center w-[15%]">Miqdar (Qty)</th>
+                            <th class="text-right w-[25%]">Qeemat (Price)</th>
+                            <th class="text-right w-[25%]">Kul (Total)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm">
+                        ${itemRows}
+                    </tbody>
+                </table>
+
+                <div class="receipt-line my-2"></div>
+
+                <table class="w-full text-left table-fixed font-bold text-base">
+                    <tr>
+                        <td class="w-2/3">KUL RAKAM (GRAND TOTAL):</td>
+                        <td class="text-right">${formatCurrency(sale.totalAmount)}</td>
+                    </tr>
+                </table>
+                
+                <div class="receipt-line my-2"></div>
+                
+                <div class="receipt-footer text-center mt-4">
+                    <p class="text-sm">Aapka Shukriya (Thank You)!</p>
+                </div>
+            `;
+
+            const printArea = document.getElementById('receipt-print-area');
+            if (printArea) {
+                printArea.innerHTML = receiptContent;
+                window.print();
+            }
+        }
+        
+        // --- HISTORY REPORT LOGIC ---
+        
+        function generateHistoryReport() {
+            const startDate = document.getElementById('report-start-date').value;
+            const endDate = document.getElementById('report-end-date').value;
+            const reportDiv = document.getElementById('history-report-results');
+            
+            if (!startDate || !endDate) {
+                reportDiv.innerHTML = `<p class="text-red-500">Kripya shuru aur aakhri tarikh (Start and End Date) dono chunein.</p>`; // Hindi (Latin)
+                return;
+            }
+
+            const start = new Date(startDate).getTime();
+            const end = new Date(endDate).getTime() + 86400000; // Add 24 hours to include the end date
+
+            const filteredSales = currentSales.filter(sale => {
+                const saleTime = new Date(sale.date).getTime();
+                return saleTime >= start && saleTime < end;
+            });
+
+            const filteredExpenses = currentExpenses.filter(exp => {
+                const expTime = new Date(exp.date).getTime();
+                return expTime >= start && expTime < end;
+            });
+            
+            // Calculate Summary Totals
+            const totalSales = filteredSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+            const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+            const netProfit = totalSales - totalExpenses;
+            const totalCreditSales = filteredSales
+                .filter(sale => sale.transactionType === 'Credit')
+                .reduce((sum, sale) => sum + sale.totalAmount, 0);
+
+            const profitColor = netProfit >= 0 ? 'text-green-600' : 'text-red-600';
+
+            // Sales Table
+            let salesRows = filteredSales.map(sale => `
+                <tr class="border-b">
+                    <td class="p-2 text-sm">${sale.date}</td>
+                    <td class="p-2 text-sm">${sale.itemName}</td>
+                    <td class="p-2 text-sm text-center">${sale.quantity}</td>
+                    <td class="p-2 text-sm text-right">${formatCurrency(sale.totalAmount)}</td>
+                    <td class="p-2 text-sm text-center">${sale.transactionType}</td>
+                </tr>
+            `).join('');
+            if (filteredSales.length === 0) salesRows = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Is samay mein koi sale record nahi kiya gaya hai.</td></tr>'; // Hindi (Latin)
+
+            // Expenses Table
+            let expenseRows = filteredExpenses.map(exp => `
+                <tr class="border-b">
+                    <td class="p-2 text-sm">${exp.date}</td>
+                    <td class="p-2 text-sm">${exp.description}</td>
+                    <td class="p-2 text-sm text-right">${formatCurrency(exp.amount)}</td>
+                </tr>
+            `).join('');
+            if (filteredExpenses.length === 0) expenseRows = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Is samay mein koi kharch (expense) record nahi kiya gaya hai.</td></tr>'; // Hindi (Latin)
+
+
+            // Render Report
+            reportDiv.innerHTML = `
+                <div id="history-report-print-area">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center no-print">Maali Report (Financial Report) Summary</h2> <!-- Hindi (Latin) -->
+                    <h3 class="text-lg font-medium text-gray-600 mb-4 text-center">Samay: ${startDate} se ${endDate} tak</h3> <!-- Hindi (Latin) -->
+                    
+                    <!-- Summary Dashboard -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        <div class="bg-blue-100 p-4 rounded-lg shadow-md">
+                            <p class="text-sm text-blue-600">Kul Sale (Total Sales)</p>
+                            <p class="text-xl font-bold text-blue-800">${formatCurrency(totalSales)}</p>
+                        </div>
+                        <div class="bg-yellow-100 p-4 rounded-lg shadow-md">
+                            <p class="text-sm text-yellow-600">Kul Kharch (Total Expenses)</p>
+                            <p class="text-xl font-bold text-yellow-800">${formatCurrency(totalExpenses)}</p>
+                        </div>
+                        <div class="bg-red-100 p-4 rounded-lg shadow-md">
+                            <p class="text-sm text-red-600">Udhaar Baaqi (Total Credit Due)</p>
+                            <p class="text-xl font-bold text-red-800">${formatCurrency(totalCreditSales)}</p>
+                        </div>
+                        <div class="bg-green-100 p-4 rounded-lg shadow-md">
+                            <p class="text-sm text-green-600">Net Munafa (Net Profit)</p>
+                            <p class="text-xl font-bold ${profitColor}">${formatCurrency(netProfit)}</p>
+                        </div>
+                    </div>
+                    
+                    <button onclick="window.print()" class="no-print bg-indigo-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-indigo-600 transition mb-6">Report Print Karein</button> <!-- Hindi (Latin) -->
+                    
+                    <!-- Sales Details -->
+                    <h4 class="text-xl font-semibold text-gray-700 mt-6 mb-3">Sale Tafseelat (Details)</h4> <!-- Hindi (Latin) -->
+                    <div class="overflow-x-auto bg-white rounded-lg shadow">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="p-2 text-left text-xs font-medium text-gray-500 uppercase">Tarikh (Date)</th>
+                                    <th class="p-2 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
+                                    <th class="p-2 text-center text-xs font-medium text-gray-500 uppercase">Miqdar (Qty)</th>
+                                    <th class="p-2 text-right text-xs font-medium text-gray-500 uppercase">Rakam (Amount)</th>
+                                    <th class="p-2 text-center text-xs font-medium text-gray-500 uppercase">Qism (Type)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                ${salesRows}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Expenses Details -->
+                    <h4 class="text-xl font-semibold text-gray-700 mt-8 mb-3">Kharch (Expense) Tafseelat (Details)</h4> <!-- Hindi (Latin) -->
+                    <div class="overflow-x-auto bg-white rounded-lg shadow">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="p-2 text-left text-xs font-medium text-gray-500 uppercase w-1/4">Tarikh (Date)</th>
+                                    <th class="p-2 text-left text-xs font-medium text-gray-500 uppercase w-1/2">Tafseel (Description)</th>
+                                    <th class="p-2 text-right text-xs font-medium text-gray-500 uppercase w-1/4">Rakam (Amount)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                ${expenseRows}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // --- PRICE LIST MANAGEMENT LOGIC ---
+        
+        function openManageItemsModal() {
+            const modal = document.getElementById('manage-items-modal');
+            modal.classList.remove('hidden');
+            renderPriceListManager();
+            
+            // Hide any previous error messages when opening
+            document.getElementById('item-manager-message').classList.add('hidden');
+        }
+
+        function closeManageItemsModal() {
+            const modal = document.getElementById('manage-items-modal');
+            modal.classList.add('hidden');
+            updateUI(); // Refresh the main sales form when closing
+        }
+
+        // Renames a custom item key in localStorage
+        function renameCustomItem(oldName, newName) {
+            const trimmedNewName = newName.trim();
+            
+            // 1. Validation and Early Exit Checks
+            if (trimmedNewName === oldName) return; // No change
+            if (trimmedNewName === '') {
+                showMessageBox("Item ka naam khali nahi ho sakta. Badlav wapas liya ja raha hai.", true); // Hindi (Latin)
+                renderPriceListManager(); // Re-render to revert the invalid input
+                return;
+            }
+            
+            // Default items cannot be renamed (includes the generic 'Stationery / Other Item')
+            if (DEFAULT_PRICE_LIST.hasOwnProperty(oldName)) {
+                showMessageBox(`Aap default service: "${oldName}" ka naam nahi badal sakte. Sirf custom items ka naam badla ja sakta hai.`, true); // Hindi (Latin)
+                renderPriceListManager();
+                return;
+            }
+
+            // Check for collision with any existing item (custom or default)
+            if (priceList.hasOwnProperty(trimmedNewName)) {
+                showMessageBox(`Item ka naam "${trimmedNewName}" pehle se maujood hai. Kripya naya naam chunein. Badlav wapas liya ja raha hai.`, true); // Hindi (Latin)
+                renderPriceListManager();
+                return;
+            }
+
+            if (!confirm(`Kya aap sach mein "${oldName}" ka naam badalkar "${trimmedNewName}" karna chahte hain?`)) { // Confirmation in Hindi (Latin)
+                renderPriceListManager();
+                return;
+            }
+
+            const customPrices = JSON.parse(localStorage.getItem(CUSTOM_PRICE_KEY) || '{}');
+            
+            // 2. Get the current price (from the effective priceList)
+            const price = priceList[oldName]; 
+
+            // 3. Delete the old key from the custom price list
+            // This item MUST exist in customPrices because only custom items are allowed to be renamed
+            if (customPrices.hasOwnProperty(oldName)) {
+                delete customPrices[oldName];
+            }
+            
+            // 4. Add the item with the new name and its price
+            customPrices[trimmedNewName] = price;
+
+            // 5. Update localStorage and UI
+            localStorage.setItem(CUSTOM_PRICE_KEY, JSON.stringify(customPrices));
+            loadData(); // Re-load data to update the global priceList
+            renderPriceListManager(); // Re-render the modal list
+            showMessageBox(`Item ka naam "${oldName}" se badalkar "${trimmedNewName}" safaltapoorvak (successfully) kar diya gaya hai.`); // Hindi (Latin)
+        }
+
+        function renderPriceListManager() {
+            const listContainer = document.getElementById('price-list-container');
+            if (!listContainer) return;
+
+            const customPrices = JSON.parse(localStorage.getItem(CUSTOM_PRICE_KEY) || '{}');
+            // Combine defaults and custom for display
+            const displayList = { ...DEFAULT_PRICE_LIST, ...customPrices };
+            
+            let html = '';
+            for (const [name, price] of Object.entries(displayList).sort()) {
+                
+                // IMPORTANT FIX: Escape the name for use in JS function calls in HTML attributes
+                const escapedName = escapeQuotes(name);
+
+                // 1. Determine capabilities:
+                const isDefaultItem = DEFAULT_PRICE_LIST.hasOwnProperty(name);
+                const isGenericCategory = name === 'Stationery / Other Item';
+
+                // Only custom items (not in DEFAULT_PRICE_LIST) can be renamed/deleted
+                const canBeRenamed = !isDefaultItem; 
+                const canBeDeleted = !isDefaultItem;
+                const canBePriceEdited = true; // All prices can be edited (overrides default or edits custom)
+                
+                // Visual class to clearly mark default/non-deletable items
+                const rowClass = isDefaultItem ? 'opacity-70 bg-gray-200 cursor-not-allowed' : 'bg-white hover:bg-gray-50';
+
+
+                // 2. Element for Item Name
+                const nameElement = canBeRenamed 
+                    ? `<input 
+                        type="text" 
+                        value="${name}"
+                        onchange="renameCustomItem('${escapedName}', this.value)"
+                        title="Item ka naam badlein"
+                        class="flex-grow p-1 text-left border rounded-lg text-sm mr-4 focus:ring-indigo-500 focus:border-indigo-500"
+                    />`
+                    : `<span class="text-sm font-medium text-gray-700 flex-grow mr-4 px-1">${name}</span>`;
+
+
+                html += `
+                    <div class="flex items-center justify-between p-3 border-b border-gray-100 rounded-lg my-1 ${rowClass}">
+                        ${nameElement}
+                        
+                        <input 
+                            type="number" 
+                            id="price-edit-${name.replace(/\s/g, '-')}"
+                            value="${price.toFixed(2)}"
+                            min="0"
+                            step="0.01"
+                            onchange="updateCustomPrice('${escapedName}', this.value)"
+                            class="w-24 p-1 text-right border rounded-lg text-sm mr-4 focus:ring-indigo-500 focus:border-indigo-500"
+                            title="Qeemat (Price) Badlein"
+                        />
+                        <span class="text-sm font-semibold text-gray-600 w-10">${CURRENCY}</span>
+                        <button onclick="deleteCustomItem('${escapedName}')" 
+                            class="ml-2 p-1 ${canBeDeleted ? 'text-red-500 hover:bg-red-100' : 'text-gray-400 cursor-not-allowed' } rounded-full transition duration-150" 
+                            title="${canBeDeleted ? 'Item Delete Karein' : 'Default items delete nahi ho sakte'}"
+                            ${!canBeDeleted ? 'disabled' : ''}>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3"></path></svg>
+                        </button>
+                    </div>
+                `;
+            }
+            listContainer.innerHTML = html;
+        }
+
+        function updateCustomPrice(name, newPrice) {
+            const price = parseFloat(newPrice);
+            if (isNaN(price) || price < 0) {
+                showMessageBox("Ghalat Qeemat (Invalid price) daakhil ki gayi: Qeemat hamesha positive honi chahiye. Badlav wapas liya ja raha hai.", true); // Hindi (Latin)
+                renderPriceListManager(); // Re-render to revert input value
+                return;
+            }
+            
+            // Get current custom prices
+            const customPrices = JSON.parse(localStorage.getItem(CUSTOM_PRICE_KEY) || '{}');
+            
+            // Save the new price to the custom list (overriding default if necessary)
+            customPrices[name] = price;
+            
+            localStorage.setItem(CUSTOM_PRICE_KEY, JSON.stringify(customPrices));
+            loadData(); // Update global price list
+            showMessageBox(`Item "${name}" ki Qeemat (Price) badalkar ${formatCurrency(price)} kar di gayi hai.`, false); // Hindi (Latin)
+        }
+        
+        function addNewCustomItem(event) {
+            event.preventDefault();
+            const form = event.target;
+            const name = form.elements['new-item-name'].value.trim();
+            const price = parseFloat(form.elements['new-item-price'].value);
+            
+            if (!name || isNaN(price) || price < 0) {
+                showMessageBox("Kripya sahi naam aur Qeemat (price) daakhil karein.", true); // Hindi (Latin)
+                return;
+            }
+
+            if (priceList.hasOwnProperty(name)) {
+                showMessageBox(`Item "${name}" pehle se maujood hai. Kripya niche di gayi list se Qeemat (price) badlein ya naya naam chunein.`, true); // Hindi (Latin)
+                return;
+            }
+
+            const customPrices = JSON.parse(localStorage.getItem(CUSTOM_PRICE_KEY) || '{}');
+            customPrices[name] = price;
+            
+            localStorage.setItem(CUSTOM_PRICE_KEY, JSON.stringify(customPrices));
+            form.reset();
+            loadData();
+            renderPriceListManager();
+            showMessageBox(`Naya item "${name}" safaltapoorvak (successfully) add kar diya gaya hai.`, false); // Hindi (Latin)
+        }
+        
+        function deleteCustomItem(name) {
+            // Check against original default list keys
+            if (DEFAULT_PRICE_LIST.hasOwnProperty(name)) {
+                // Display error message without using confirm/alert
+                showMessageBox(`Ma'af kijiye, aap default service: "${name}" ko delete nahi kar sakte. Aap sirf woh custom items delete kar sakte hain jo aapne khud add kiye hain.`, true); // Hindi (Latin)
+                return; 
+            }
+            
+            // CONFIRMATION is mandatory for deletion
+            if (confirm(`Kya aap sach mein is custom item: "${name}" ko delete karna chahte hain?`)) { // Confirmation in Hindi (Latin)
+                const customPrices = JSON.parse(localStorage.getItem(CUSTOM_PRICE_KEY) || '{}');
+                
+                // FINAL FIX: Ensure item is deleted from customPrices which is the source of custom items
+                if (customPrices.hasOwnProperty(name)) {
+                    delete customPrices[name];
+                } else {
+                    // This should ideally not happen if the logic is right, but good for debugging
+                    console.error("Attempted to delete a custom item that wasn't found in customPrices storage:", name);
+                }
+                
+                localStorage.setItem(CUSTOM_PRICE_KEY, JSON.stringify(customPrices));
+                loadData();
+                renderPriceListManager();
+                showMessageBox(`Custom item "${name}" safaltapoorvak (successfully) delete kar diya gaya hai.`, false); // Hindi (Latin)
+            }
+        }
+        
+        // --- INITIALIZATION ---
+        window.onload = function() {
+            updateUI(); // Initial load and render
+            setupSaleFormListeners(); // Ensure listeners are attached initially
+            
+            // Fix static HTML labels using JS on load for the final touch (all in Hindi/Latin)
+            // Sale form labels
+            document.getElementById('sale-price-label').textContent = `Ek Unit Ki Qeemat (${CURRENCY})`;
+            // Expense form labels
+            document.getElementById('expense-amount-label').textContent = `Kharch Ki Rakam (${CURRENCY})`;
+            // Manage Item Modal labels
+            document.getElementById('new-item-price-label').textContent = `Qeemat (${CURRENCY})`;
+            document.getElementById('existing-items-price-label').textContent = `Maujooda Items (Qeemat ${CURRENCY} mein)`; 
+        };
+    </script>
+
+    <div class="max-w-6xl mx-auto space-y-8 no-print">
+        <header class="text-center py-4 border-b-2 border-indigo-200">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-700">Shop Sale Aur Kharch (Expense) Manager</h1>
+            <button onclick="openManageItemsModal()" class="mt-2 text-sm bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-semibold py-1 px-3 rounded-full shadow-md transition duration-150">
+                Service Items Manage Karein
+            </button>
+        </header>
+
+        <!-- Summary Dashboard -->
+        <div id="summary-dashboard" class="bg-white p-6 rounded-xl shadow-lg">
+            <!-- Content populated by renderSummary() -->
+        </div>
+
+        <!-- Sales and Expenses Entry (Side-by-Side on Desktop) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            <!-- 1. New Sale Entry -->
+            <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-indigo-500">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Nayi Sale Daakhil Karein</h2>
+                <form onsubmit="addSale(event)">
+                    
+                    <!-- Transaction Type -->
+                    <div class="mb-4">
+                        <label for="transaction-type" class="block text-sm font-medium text-gray-700">Len-Den Ki Qism (Transaction Type)</label>
+                        <select id="transaction-type" name="transaction-type" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2">
+                            <option value="Cash">Cash Sale</option>
+                            <option value="Credit">Udhaar Sale (Credit Sale)</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Customer Name (Conditional) -->
+                    <div id="customer-name-container" class="mb-4 hidden">
+                        <label for="customer-name" class="block text-sm font-medium text-gray-700">Gahak Ka Naam (Udhaar ke liye zaroori)</label>
+                        <input type="text" id="customer-name" name="customer-name" placeholder="Gahak ka naam likhein" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2">
+                    </div>
+
+                    <!-- Service Category -->
+                    <div class="mb-4">
+                        <label for="sale-category" class="block text-sm font-medium text-gray-700">Service / Item Category</label>
+                        <select id="sale-category" name="sale-category" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2">
+                            <!-- Options populated by renderSaleEntryForm() -->
+                        </select>
+                    </div>
+
+                    <!-- Custom Item Name (Conditional) -->
+                    <div id="custom-item-container" class="mb-4 hidden">
+                        <label for="custom-item-name" class="block text-sm font-medium text-gray-700">Item Ka Naam / Tafseel (Description)</label>
+                        <input type="text" id="custom-item-name" name="custom-item-name" placeholder="Maslan: A4 Paper Ream" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2">
+                    </div>
+
+                    <!-- Quantity and Price -->
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="sale-quantity" class="block text-sm font-medium text-gray-700">Miqdar (Quantity)</label>
+                            <input type="number" id="sale-quantity" name="sale-quantity" value="1" min="1" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2">
+                        </div>
+                        <div>
+                            <!-- CORRECTED STATIC LABEL: Updated via JS on load -->
+                            <label for="sale-price" id="sale-price-label" class="block text-sm font-medium text-gray-700">Ek Unit Ki Qeemat (PKR)</label>
+                            <input type="number" id="sale-price" name="sale-price" step="0.01" min="0" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition duration-150 shadow-md">
+                        Sale Record Karein
+                    </button>
+                </form>
+            </div>
+
+            <!-- 2. New Expense Entry -->
+            <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-yellow-500">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Naya Kharch (Expense) Daakhil Karein</h2>
+                <form onsubmit="addExpense(event)">
+                    <div class="mb-4">
+                        <label for="expense-description" class="block text-sm font-medium text-gray-700">Kharch Ki Tafseel (Description)</label>
+                        <input type="text" id="expense-description" name="expense-description" required placeholder="Maslan: Bijli ka Bill, Paper Stock" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 p-2">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <!-- CORRECTED STATIC LABEL: Updated via JS on load -->
+                        <label for="expense-amount" id="expense-amount-label" class="block text-sm font-medium text-gray-700">Kharch Ki Rakam (PKR)</label>
+                        <input type="number" id="expense-amount" name="expense-amount" step="0.01" min="0" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 p-2">
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label for="expense-date" class="block text-sm font-medium text-gray-700">Tarikh (Date)</label>
+                        <input type="date" id="expense-date" name="expense-date" value="${new Date().toISOString().substring(0, 10)}" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 p-2">
+                    </div>
+
+                    <button type="submit" class="w-full bg-yellow-600 text-white py-2 rounded-lg font-semibold hover:bg-yellow-700 transition duration-150 shadow-md">
+                        Kharch Record Karein
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Recent Records -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Recent Sales List -->
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Recent Sales History</h2>
+                <ul id="recent-sales-list" class="space-y-3">
+                    <!-- Content populated by renderRecentSales() -->
+                </ul>
+            </div>
+
+            <!-- Recent Expenses List -->
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Recent Expenses History</h2>
+                <ul id="recent-expenses-list" class="space-y-3">
+                    <!-- Content populated by renderRecentExpenses() -->
+                </ul>
+            </div>
+        </div>
+        
+        <!-- History Report Section -->
+        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-gray-500">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">History Report Generator</h2>
+            <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-6 items-end">
+                <div>
+                    <label for="report-start-date" class="block text-sm font-medium text-gray-700">Shuru Tarikh (Start Date)</label>
+                    <input type="date" id="report-start-date" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-gray-500 focus:ring-gray-500 p-2">
+                </div>
+                <div>
+                    <label for="report-end-date" class="block text-sm font-medium text-gray-700">Aakhri Tarikh (End Date)</label>
+                    <input type="date" id="report-end-date" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-gray-500 focus:ring-gray-500 p-2">
+                </div>
+                <button onclick="generateHistoryReport()" class="w-full md:w-auto bg-gray-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-gray-700 transition duration-150 shadow-md">
+                    Report Banaein
+                </button>
+            </div>
+            
+            <div id="history-report-results" class="mt-6">
+                <p class="text-gray-500">Tarikh chun kar "Report Banaein" button dabayen.</p>
+            </div>
+        </div>
+
+    </div>
+    
+    <!-- Area for printing the receipt (hidden until print is triggered) -->
+    <div id="receipt-print-area" class="hidden"></div>
+    
+    <!-- --- Price List Management Modal --- -->
+    <div id="manage-items-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-10 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-xl bg-white">
+            <div class="flex justify-between items-center pb-3 border-b">
+                <h3 class="text-2xl font-bold text-gray-800">Service Items Manage Karein</h3>
+                <button onclick="closeManageItemsModal()" class="text-gray-400 hover:text-gray-600 text-3xl font-semibold">&times;</button>
+            </div>
+            
+            <div class="mt-4">
+                <!-- Message box for feedback on delete/rename actions -->
+                <div id="item-manager-message" class="hidden"></div>
+
+                <h4 class="text-lg font-semibold text-indigo-700 mb-3">Naya Item Add Karein</h4>
+                <form onsubmit="addNewCustomItem(event)" class="grid grid-cols-5 gap-3 items-end p-3 border rounded-lg bg-gray-50 mb-6">
+                    <div class="col-span-3">
+                        <label for="new-item-name" class="block text-sm font-medium text-gray-700">Item Ka Naam</label>
+                        <input type="text" id="new-item-name" name="new-item-name" required placeholder="Nayi Custom Service Ka Naam" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 text-sm">
+                    </div>
+                    <div class="col-span-1">
+                        <!-- CORRECTED STATIC LABEL: Updated via JS on load -->
+                        <label for="new-item-price" id="new-item-price-label" class="block text-sm font-medium text-gray-700">Qeemat (PKR)</label>
+                        <input type="number" id="new-item-price" name="new-item-price" step="0.01" min="0" required value="0.00" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 text-sm">
+                    </div>
+                    <button type="submit" class="col-span-1 h-full bg-indigo-500 text-white py-2 rounded-lg font-semibold hover:bg-indigo-600 transition duration-150 shadow-md">
+                        Add Karein
+                    </button>
+                </form>
+                
+                <!-- CORRECTED STATIC LABEL: Added ID and Updated via JS on load -->
+                <h4 id="existing-items-price-label" class="text-lg font-semibold text-indigo-700 mb-3">Maujooda Items (Qeemat PKR mein)</h4>
+                <div id="price-list-container" class="space-y-2 max-h-96 overflow-y-auto p-2 border rounded-lg bg-gray-100 shadow-inner">
+                    <!-- Price list content populated by renderPriceListManager() -->
+                </div>
+            </div>
+            
+            <div class="mt-6 pt-3 border-t text-right">
+                <button onclick="closeManageItemsModal()" class="bg-gray-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-gray-600 transition duration-150 shadow-md">
+                    Band Karein & Update Karein
+                </button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
